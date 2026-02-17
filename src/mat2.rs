@@ -1,4 +1,4 @@
-use std::ops::{Add, Div, Mul, Neg, Sub};
+use std::{fmt::Debug, ops::{Add, Div, Mul, Neg, Sub}};
 
 use macroquad::math::Vec2;
 
@@ -7,6 +7,12 @@ pub const I: Mat2 = Mat2::new(1.0, 0.0, 0.0, 1.0);
 #[derive(Clone, Copy)]
 pub struct Mat2 {
     data: [f32; 4]
+}
+
+impl Debug for Mat2 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.data.fmt(f)
+    }
 }
 
 impl Mul<Mat2> for Mat2 {
@@ -40,10 +46,10 @@ impl Mul<f32> for Mat2 {
     }
 }
 
-impl Mul<Mat2> for Vec2 {
+impl Mul<Vec2> for Mat2 {
     type Output = Vec2;
-    fn mul(self, rhs: Mat2) -> Self::Output {
-        Vec2::new(self.x * rhs.data[0] + self.y * rhs.data[1], self.x * rhs.data[2] + self.y * rhs.data[3])
+    fn mul(self, rhs: Vec2) -> Self::Output {
+        Vec2::new(rhs.x * self.data[0] + rhs.y * self.data[1], rhs.x * self.data[2] + rhs.y * self.data[3])
     }
 }
 
@@ -93,16 +99,39 @@ impl Mat2 {
         }
     }
 
+    pub fn rotation(angle: f32) -> Self {
+        let sin = angle.sin();
+        let cos = angle.cos();
+        Self {
+            data: [
+                cos, -sin,
+                sin, cos
+            ]
+        }
+    }
+
+    pub fn a(&self) -> f32 {
+        self.data[0]
+    }
+
+    pub fn b(&self) -> f32 {
+        self.data[1]
+    }
+
+    pub fn c(&self) -> f32 {
+        self.data[2]
+    }
+
+    pub fn d(&self) -> f32 {
+        self.data[3]
+    }
+
     pub fn det(&self) -> f32 {
         self.data[0] * self.data[3] - self.data[1] * self.data[2]
     }
 
-    pub fn inv(&self) -> Option<Self> {
+    pub fn inv(&self) -> Self {
         let det = self.det();
-        if det.abs() < 1e-4 {
-            None
-        } else {
-            Some(Mat2::new(self.data[3], -self.data[1], -self.data[2], self.data[0]) / det)
-        }
+        Mat2::new(self.data[3], -self.data[1], -self.data[2], self.data[0]) / det
     }
 }
