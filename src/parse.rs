@@ -1,16 +1,16 @@
-use std::{collections::{HashMap, VecDeque}, fmt::{Debug, Pointer}, io::{self, Write}};
+use std::{collections::{HashMap, VecDeque}, fmt::Debug};
 
+use input_handler::InputHandler;
 use macroquad::math::Vec2;
 
 use crate::mat2::Mat2;
 
 
-pub fn input(prompt: &str) -> String {
-    let mut input = String::new();
-    print!("{prompt}");
-    io::stdout().flush().unwrap();
-    io::stdin().read_line(&mut input).unwrap();
-    input
+pub fn input(prompt: &str, handler: &mut InputHandler) -> String {
+    match handler.readline(prompt) {
+        Ok(input) => input,
+        Err(err) => panic!("Error with input: {err}")
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -48,10 +48,10 @@ pub enum VecEx {
 
 #[derive(Clone, Debug)]
 pub enum FloatEx {
-    TopLeft(Box<MatEx>),
-    TopRight(Box<MatEx>),
-    BottomLeft(Box<MatEx>),
-    BottomRight(Box<MatEx>),
+    A(Box<MatEx>),
+    B(Box<MatEx>),
+    C(Box<MatEx>),
+    D(Box<MatEx>),
     X(Box<VecEx>),
     Y(Box<VecEx>),
     Mul(Box<FloatEx>, Box<FloatEx>),
@@ -150,7 +150,8 @@ impl Ex {
 #[derive(Debug)]
 pub enum Line {
     Eval(Ex),
-    SetVar(String, Ex)
+    SetVar(String, Ex),
+    None
 }
 
 
@@ -169,10 +170,16 @@ pub enum Token {
     Pow,
     DotX,
     DotY,
+    DotW,
+    DotZ,
     DotA,
     DotB,
     DotC,
     DotD,
+    Left,
+    Right,
+    Top,
+    Bottom,
     Hor,
     Vert,
     RotMat,
@@ -243,13 +250,40 @@ fn make_exp(lhs: Ex, rhs: Ex, op: Token) -> Option<Ex> {
     Some(result)
 }
 
+
+fn split_by_dot(iter: impl Iterator<Item = String>) -> impl Iterator<Item = String> {
+    iter.flat_map(|s| {
+        let mut result = Vec::new();
+        let mut remaining = &*s;
+
+        if Some(0) != remaining.find('.') && let Some(dot_pos) = remaining.find('.') {
+            let (before, after) = remaining.split_at(dot_pos);
+            result.push(before.to_string());
+            remaining = after;
+        }
+        
+        while let Some(dot_pos) = remaining[1..].find('.') {
+            let (before, after) = remaining.split_at(dot_pos + 1);
+            if !before.is_empty() {
+                result.push(before.to_string());
+            }
+            // Keep the dot with the rest
+            remaining = after;
+        }
+        result.push(remaining.to_string());
+        
+        result.into_iter()
+    })
+}
+
 pub fn tokenise(inp: &str) -> Result<Vec<Token>, String> {
     if !inp.is_ascii() {
         return Err("Expression consists of non-ascii characters.".to_string())
     }
     
     let mut result = Vec::new();
-    let inp = inp.trim().split(" ");
+    let inp = inp.trim().split(" ").map(|d| d.to_string());
+    let inp = split_by_dot(inp);
 
     for inp in inp {
         let mut residual = String::new();
@@ -258,10 +292,16 @@ pub fn tokenise(inp: &str) -> Result<Vec<Token>, String> {
             match residual {
                 ".x" => result.push(Token::DotX),
                 ".y" => result.push(Token::DotY),
+                ".w" => result.push(Token::DotW),
+                ".z" => result.push(Token::DotZ),
                 ".a" => result.push(Token::DotA),
                 ".b" => result.push(Token::DotB),
                 ".c" => result.push(Token::DotC),
                 ".d" => result.push(Token::DotD),
+                "Left" => result.push(Token::Left),
+                "Right" => result.push(Token::Right),
+                "Top" => result.push(Token::Top),
+                "Bottom" => result.push(Token::Bottom),
                 "Hor" => result.push(Token::Hor),
                 "Vert" => result.push(Token::Vert),
                 "Mat" => result.push(Token::Mat),
@@ -277,7 +317,8 @@ pub fn tokenise(inp: &str) -> Result<Vec<Token>, String> {
             }
         }
 
-        fn append_residual_first(result: &mut Vec<Token>, residual: &str) -> bool {
+        /// this is for operators that have multiple characters, but still want early as possible parsing.
+        fn append_residual_first(_result: &mut Vec<Token>, _residual: &str) -> bool {
             false
             // match residual {
             //     "**" => result.push(Token::Pow),
@@ -355,7 +396,7 @@ impl<T: Default + Debug> Lexer<T> {
 
 pub fn make_tree(vars: &HashMap<String, Obj>, tokens: Vec<Token>) -> Result<Line, String> {
     if tokens.is_empty() {
-        Err("Did not enter anything".to_string())
+        Ok(Line::None)
     } else if tokens.len() >= 2 && let Token::VarName(name) = tokens[0].clone() && let Token::Eq = tokens[1] {
         let mut tokens: VecDeque<Token> = tokens.into();
         tokens.pop_front();
@@ -378,7 +419,7 @@ fn binding_power(token: &Token) -> Option<(u8, u8)> {
         Token::Mul => (5, 6),
         Token::Div => (5, 6), // todo!() make sure this is the correct way round. this means "1 / 2 / 3" should work
         Token::Cross => (7, 8),
-        Token::Pow => (9, 10),
+        Token::Pow => (10, 9),
         _ => return None
     };
     Some(result)
@@ -427,6 +468,22 @@ fn pratt_parse(vars: &HashMap<String, Obj>, lexer: &mut Lexer<Token>, min_bp: u8
             Some(Obj::Float(float)) => Ex::Float(FloatEx::Literal(*float)),
             Some(Obj::Mat(mat)) => Ex::Mat(MatEx::Literal(*mat)),
             Some(Obj::Vec(vec)) => Ex::Vec(VecEx::Literal(*vec)),
+        },
+        Token::Left => {
+            let [a] = parse_func_boxed(vars, lexer)?;
+            Ex::Vec(VecEx::Left(a))
+        },
+        Token::Right => {
+            let [a] = parse_func_boxed(vars, lexer)?;
+            Ex::Vec(VecEx::Right(a))
+        },
+        Token::Top => {
+            let [a] = parse_func_boxed(vars, lexer)?;
+            Ex::Vec(VecEx::Top(a))
+        },
+        Token::Bottom => {
+            let [a] = parse_func_boxed(vars, lexer)?;
+            Ex::Vec(VecEx::Bottom(a))
         },
         Token::Hor => {
             let [a, b] = parse_func_boxed(vars, lexer)?;
@@ -479,8 +536,25 @@ fn pratt_parse(vars: &HashMap<String, Obj>, lexer: &mut Lexer<Token>, min_bp: u8
         if end_of_ex(op) {
             break;
         }
+
         let Some((l_bp, r_bp)) = binding_power(op) else {
-            return Err(format!("Expected operation, got token `{op:?}`."))
+            let op = lexer.next();
+            match lhs {
+                Ex::Mat(ex) => match op {
+                    Token::DotA | Token::DotX => lhs = Ex::Float(FloatEx::A(Box::new(ex))),
+                    Token::DotB | Token::DotY => lhs = Ex::Float(FloatEx::B(Box::new(ex))),
+                    Token::DotC | Token::DotW => lhs = Ex::Float(FloatEx::C(Box::new(ex))),
+                    Token::DotD | Token::DotZ => lhs = Ex::Float(FloatEx::D(Box::new(ex))),
+                    _ => return Err(format!("Expected operation, DotA - DotD or DotX - DotZ, got token `{op:?}`."))
+                },
+                Ex::Vec(ex) => match op {
+                    Token::DotA | Token::DotX => lhs = Ex::Float(FloatEx::X(Box::new(ex))),
+                    Token::DotB | Token::DotY => lhs = Ex::Float(FloatEx::Y(Box::new(ex))),
+                    _ => return Err(format!("Expected operation, DotA - DotB or DotX - DotY, got token `{op:?}`."))
+                },
+                Ex::Float(_ex) => return Err(format!("Expected operation, got token `{op:?}`.")),
+            }
+            continue;
         };
         
         if l_bp < min_bp {
@@ -502,8 +576,8 @@ fn pratt_parse(vars: &HashMap<String, Obj>, lexer: &mut Lexer<Token>, min_bp: u8
 
 }
 
-pub fn parse_exp(vars: &mut HashMap<String, Obj>) -> Option<Line> {
-    let tokenised = tokenise(&input("> "));
+pub fn parse_exp(vars: &HashMap<String, Obj>, handler: &mut InputHandler) -> Option<Line> {
+    let tokenised = tokenise(&input("> ", handler));
     match tokenised {
         Err(err) => eprintln!("{err}"),
         Ok(tokens) => match make_tree(vars, tokens) {
@@ -520,6 +594,7 @@ pub fn get_result(vars: &mut HashMap<String, Obj>, line: Line) -> Option<Obj> {
     let ex = match line {
         Line::Eval(ex) => ex,
         Line::SetVar(var, ex) => {set_var = Some(var); ex},
+        Line::None => return None
     };
 
     let result = resolve_ex(ex);
@@ -540,16 +615,17 @@ pub fn resolve_ex(ex: Ex) -> Obj {
     }
 }
 
+#[allow(clippy::boxed_local)] // This allow is here because this function is QOL, not functional
 fn resolve<T: ExTrait>(ex: Box<T>) -> T::Into {
     T::resolve(*ex)
 }
 
 fn resolve_float(ex: FloatEx) -> f32 {
     match ex {
-        FloatEx::TopLeft(ex) => resolve(ex).a(),
-        FloatEx::TopRight(ex) => resolve(ex).b(),
-        FloatEx::BottomLeft(ex) => resolve(ex).c(),
-        FloatEx::BottomRight(ex) => resolve(ex).c(),
+        FloatEx::A(ex) => resolve(ex).a(),
+        FloatEx::B(ex) => resolve(ex).b(),
+        FloatEx::C(ex) => resolve(ex).c(),
+        FloatEx::D(ex) => resolve(ex).c(),
         FloatEx::X(ex) => resolve(ex).x,
         FloatEx::Y(ex) => resolve(ex).y,
         FloatEx::Mul(ex, ex1) => resolve(ex) * resolve(ex1),
