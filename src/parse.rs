@@ -2,7 +2,7 @@ use std::{collections::{HashMap, VecDeque}, fmt::Debug};
 
 use input_handler::InputHandler;
 use macroquad::math::Vec2;
-
+pub mod for_each;
 use crate::mat2::Mat2;
 
 
@@ -88,8 +88,8 @@ pub enum Ex {
     Float(FloatEx)
 }
 
-trait ExTrait: Clone {
-    type Into;
+pub trait ExTrait: Clone {
+    type Output;
     fn concrete(ex: Ex) -> Option<Self> where Self: Sized;
     fn concrete_err(ex: Ex) -> Result<Self, String> where Self: Sized {
         match Self::concrete(ex) {
@@ -97,42 +97,42 @@ trait ExTrait: Clone {
             None => Err("Received wrong type in function use.".to_string())
         }
     }
-    fn resolve(ex: Self) -> Self::Into;
+    fn resolve(ex: &Self) -> Self::Output;
 }
 
 impl ExTrait for MatEx {
-    type Into = Mat2;
+    type Output = Mat2;
     fn concrete(ex: Ex) -> Option<Self> {
         match ex {
             Ex::Mat(value) => Some(value),
             _ => None
         }
     }
-    fn resolve(ex: Self) -> Self::Into {
+    fn resolve(ex: &Self) -> Self::Output {
         resolve_mat(ex)
     }
 }
 impl ExTrait for VecEx {
-    type Into = Vec2;
+    type Output = Vec2;
     fn concrete(ex: Ex) -> Option<Self> {
         match ex {
             Ex::Vec(value) => Some(value),
             _ => None
         }
     }
-    fn resolve(ex: Self) -> Self::Into {
+    fn resolve(ex: &Self) -> Self::Output {
         resolve_vec(ex)
     }
 }
 impl ExTrait for FloatEx {
-    type Into = f32;
+    type Output = f32;
     fn concrete(ex: Ex) -> Option<Self> {
         match ex {
             Ex::Float(value) => Some(value),
             _ => None
         }
     }
-    fn resolve(ex: Self) -> Self::Into {
+    fn resolve(ex: &Self) -> Self::Output {
         resolve_float(ex)
     }
 }
@@ -151,11 +151,11 @@ impl Ex {
 pub enum Line {
     Eval(Ex),
     SetVar(String, Ex),
-    None
+    None,
 }
 
 
-#[derive(PartialEq, Debug, Clone, Default)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum Token {
     LBrace,
     RBrace,
@@ -186,9 +186,8 @@ pub enum Token {
     RotVec,
     Cross,
     Eq,
+    Show,
     VarName(String),
-    #[default]
-    Eof
 }
 
 fn make_exp(lhs: Ex, rhs: Ex, op: Token) -> Option<Ex> {
@@ -261,6 +260,10 @@ fn split_by_dot(iter: impl Iterator<Item = String>) -> impl Iterator<Item = Stri
             result.push(before.to_string());
             remaining = after;
         }
+
+        if remaining.is_empty() {
+            return Vec::new().into_iter()
+        }
         
         while let Some(dot_pos) = remaining[1..].find('.') {
             let (before, after) = remaining.split_at(dot_pos + 1);
@@ -308,6 +311,7 @@ pub fn tokenise(inp: &str) -> Result<Vec<Token>, String> {
                 "Vec" => result.push(Token::Vec),
                 "RotMat" => result.push(Token::RotMat),
                 "RotVec" => result.push(Token::RotVec),
+                "Show" => result.push(Token::Show),
                 value => {
                     match value.parse() {
                         Ok(float) => result.push(Token::Float(float)),
@@ -368,48 +372,52 @@ pub fn tokenise(inp: &str) -> Result<Vec<Token>, String> {
 }
 
 
-struct Lexer<T: Default> {
+pub struct Buffer<T> {
     data: VecDeque<T>,
-    default: T
 }
 
-impl<T: Default + Debug> Lexer<T> {
-    fn new(data: VecDeque<T>) -> Self {
+impl<T: Debug> Buffer<T> {
+    pub fn new(data: VecDeque<T>) -> Self {
         Self {
             data,
-            default: T::default()
         }
     }
 
-    fn peek(&self) -> &T {
+    pub fn peek(&self) -> Option<&T> {
         if self.data.is_empty() {
-            return &self.default
+            return None
         }
-        &self.data[0]
+        Some(&self.data[0])
     }
 
-    fn next(&mut self) -> T {
-        // self.data.pop_front().expect("Called next on empty lexer. If this is intentional, uncomment following code:")
-        self.data.pop_front().unwrap_or_default()
+    pub fn next(&mut self) -> T {
+        self.data.pop_front().expect("Next should only be called in a buffer if there is an item.")
     }
 }
 
-pub fn make_tree(vars: &HashMap<String, Obj>, tokens: Vec<Token>) -> Result<Line, String> {
-    if tokens.is_empty() {
-        Ok(Line::None)
-    } else if tokens.len() >= 2 && let Token::VarName(name) = tokens[0].clone() && let Token::Eq = tokens[1] {
-        let mut tokens: VecDeque<Token> = tokens.into();
+pub fn make_tree(vars: &HashMap<String, Obj>, tokens: Vec<Token>) -> Result<(Line, bool), String> {
+    let mut tokens: VecDeque<Token> = tokens.into();
+    let show = !tokens.is_empty() && Token::Show == tokens[0];
+    if show {
         tokens.pop_front();
-        tokens.pop_front();
-        Ok(Line::SetVar(name, pratt_parse(vars, &mut Lexer::new(tokens), 0)?))
-    } else {
-        let mut tokens = Lexer::new(tokens.into());
-        Ok(Line::Eval(pratt_parse(vars, &mut tokens, 0)?))
     }
+
+    let result = if tokens.is_empty() {
+        Line::None
+    } else if tokens.len() >= 2 && let Token::VarName(name) = tokens[0].clone() && let Token::Eq = tokens[1] {
+        tokens.pop_front();
+        tokens.pop_front();
+        Line::SetVar(name, pratt_parse(vars, &mut Buffer::new(tokens), 0)?)
+    } else {
+        let mut tokens = Buffer::new(tokens);
+        Line::Eval(pratt_parse(vars, &mut tokens, 0)?)
+    };
+
+    Ok((result, show))
 }
 
 fn end_of_ex(token: &Token) -> bool {
-    matches!(token, Token::Comma | Token::RBrace | Token::Eof)
+    matches!(token, Token::Comma | Token::RBrace)
 }
 
 fn binding_power(token: &Token) -> Option<(u8, u8)> {
@@ -426,7 +434,7 @@ fn binding_power(token: &Token) -> Option<(u8, u8)> {
 }
 
 /// This supports functions with at least one argument
-fn parse_func<const N: usize, T: ExTrait>(vars: &HashMap<String, Obj>, lexer: &mut Lexer<Token>) -> Result<[T; N], String> {
+fn parse_func<const N: usize, T: ExTrait>(vars: &HashMap<String, Obj>, lexer: &mut Buffer<Token>) -> Result<[T; N], String> {
     let token = lexer.next();
 
     if Token::LBrace != token {
@@ -456,11 +464,11 @@ fn parse_func<const N: usize, T: ExTrait>(vars: &HashMap<String, Obj>, lexer: &m
     Ok(result.map(|d| d.unwrap()))
 }
 
-fn parse_func_boxed<const N: usize, T: ExTrait>(vars: &HashMap<String, Obj>, lexer: &mut Lexer<Token>) -> Result<[Box<T>; N], String> {
+fn parse_func_boxed<const N: usize, T: ExTrait>(vars: &HashMap<String, Obj>, lexer: &mut Buffer<Token>) -> Result<[Box<T>; N], String> {
     Ok(parse_func(vars, lexer)?.map(|d| Box::new(d)))
 }
 
-fn pratt_parse(vars: &HashMap<String, Obj>, lexer: &mut Lexer<Token>, min_bp: u8) -> Result<Ex, String> {
+fn pratt_parse(vars: &HashMap<String, Obj>, lexer: &mut Buffer<Token>, min_bp: u8) -> Result<Ex, String> {
     let mut lhs = match lexer.next() { // todo!() Test "3 +"
         Token::Float(float) => Ex::Float(FloatEx::Literal(float)),
         Token::VarName(name) => match vars.get(&name) {
@@ -531,7 +539,7 @@ fn pratt_parse(vars: &HashMap<String, Obj>, lexer: &mut Lexer<Token>, min_bp: u8
     };
 
     loop {
-        let op = lexer.peek();
+        let Some(op) = lexer.peek() else {break;};
 
         if end_of_ex(op) {
             break;
@@ -576,7 +584,7 @@ fn pratt_parse(vars: &HashMap<String, Obj>, lexer: &mut Lexer<Token>, min_bp: u8
 
 }
 
-pub fn parse_exp(vars: &HashMap<String, Obj>, handler: &mut InputHandler) -> Option<Line> {
+pub fn parse_exp(vars: &HashMap<String, Obj>, handler: &mut InputHandler) -> Option<(Line, bool)> {
     let tokenised = tokenise(&input("> ", handler));
     match tokenised {
         Err(err) => eprintln!("{err}"),
@@ -589,25 +597,7 @@ pub fn parse_exp(vars: &HashMap<String, Obj>, handler: &mut InputHandler) -> Opt
     None
 }
 
-pub fn get_result(vars: &mut HashMap<String, Obj>, line: Line) -> Option<Obj> {
-    let mut set_var = None;
-    let ex = match line {
-        Line::Eval(ex) => ex,
-        Line::SetVar(var, ex) => {set_var = Some(var); ex},
-        Line::None => return None
-    };
-
-    let result = resolve_ex(ex);
-
-    if let Some(var) = set_var {
-        vars.entry(var).insert_entry(result);
-        return None
-    };
-
-    Some(result)
-}
-
-pub fn resolve_ex(ex: Ex) -> Obj {
+pub fn resolve_ex(ex: &Ex) -> Obj {
     match ex {
         Ex::Float(ex) => Obj::Float(resolve_float(ex)),
         Ex::Mat(ex) => Obj::Mat(resolve_mat(ex)),
@@ -615,12 +605,7 @@ pub fn resolve_ex(ex: Ex) -> Obj {
     }
 }
 
-#[allow(clippy::boxed_local)] // This allow is here because this function is QOL, not functional
-fn resolve<T: ExTrait>(ex: Box<T>) -> T::Into {
-    T::resolve(*ex)
-}
-
-fn resolve_float(ex: FloatEx) -> f32 {
+fn resolve_float(ex: &FloatEx) -> f32 {
     match ex {
         FloatEx::A(ex) => resolve(ex).a(),
         FloatEx::B(ex) => resolve(ex).b(),
@@ -636,11 +621,11 @@ fn resolve_float(ex: FloatEx) -> f32 {
         FloatEx::Neg(ex) => -resolve(ex),
         FloatEx::Dot(ex, ex1) => resolve(ex).dot(resolve(ex1)),
         FloatEx::Cross(ex, ex1) => {let a = resolve(ex); let b = resolve(ex1); a.x * b.y - a.y * b.x},
-        FloatEx::Literal(float) => float,
+        FloatEx::Literal(float) => *float,
     }
 }
 
-fn resolve_mat(ex: MatEx) -> Mat2 {
+fn resolve_mat(ex: &MatEx) -> Mat2 {
     match ex {
         MatEx::MatMul(ex, ex1) => resolve(ex) * resolve(ex1),
         MatEx::MatAdd(ex, ex1) => resolve(ex) + resolve(ex1),
@@ -653,11 +638,16 @@ fn resolve_mat(ex: MatEx) -> Mat2 {
         MatEx::Vert(ex, ex1) => {let a = resolve(ex); let b = resolve(ex1); Mat2::new(a.x, b.x, a.y, b.y)},
         MatEx::Hor(ex, ex1) => {let a = resolve(ex); let b = resolve(ex1); Mat2::new(a.x, a.y, b.x, b.y)},
         MatEx::Inv(ex) => resolve(ex).inv(),
-        MatEx::Literal(mat) => mat,
+        MatEx::Literal(mat) => *mat,
     }
 }
 
-fn resolve_vec(ex: VecEx) -> Vec2 {
+#[allow(clippy::borrowed_box)] // This is because this is QOL, not functional.
+fn resolve<T: ExTrait>(ex: &Box<T>) -> T::Output {
+    T::resolve(ex.as_ref())
+}
+
+fn resolve_vec(ex: &VecEx) -> Vec2 {
     match ex {
         VecEx::VecMul(ex, ex1) => resolve(ex) * resolve(ex1),
         VecEx::VecAdd(ex, ex1) => resolve(ex) + resolve(ex1),
@@ -671,6 +661,6 @@ fn resolve_vec(ex: VecEx) -> Vec2 {
         VecEx::Top(ex) => {let mat = resolve(ex); Vec2::new(mat.a(), mat.b())},
         VecEx::Bottom(ex) => {let mat = resolve(ex); Vec2::new(mat.c(), mat.d())},
         VecEx::New(ex, ex1) => Vec2::new(resolve(ex), resolve(ex1)),
-        VecEx::Literal(vec) => vec,
+        VecEx::Literal(vec) => *vec,
     }
 }
