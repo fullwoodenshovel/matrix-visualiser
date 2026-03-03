@@ -3,6 +3,7 @@ use std::{collections::{HashMap, VecDeque}, fmt::Debug};
 use input_handler::InputHandler;
 use macroquad::math::Vec2;
 pub mod for_each;
+pub mod visualise;
 use crate::mat2::Mat2;
 
 
@@ -62,6 +63,7 @@ pub enum FloatEx {
     Neg(Box<FloatEx>),
     Dot(Box<VecEx>, Box<VecEx>),
     Cross(Box<VecEx>, Box<VecEx>),
+    Det(Box<MatEx>),
     Literal(f32)
 }
 
@@ -185,6 +187,7 @@ pub enum Token {
     RotMat,
     RotVec,
     Cross,
+    Det,
     Eq,
     Show,
     VarName(String),
@@ -253,31 +256,30 @@ fn make_exp(lhs: Ex, rhs: Ex, op: Token) -> Option<Ex> {
 fn split_by_dot(iter: impl Iterator<Item = String>) -> impl Iterator<Item = String> {
     iter.flat_map(|s| {
         let mut result = Vec::new();
-        let mut remaining = &*s;
-
-        if Some(0) != remaining.find('.') && let Some(dot_pos) = remaining.find('.') {
-            let (before, after) = remaining.split_at(dot_pos);
-            result.push(before.to_string());
-            remaining = after;
-        }
-
-        if remaining.is_empty() {
-            return Vec::new().into_iter()
+        let chars: Vec<char> = s.chars().collect();
+        let mut last_split = 0;
+        
+        for i in 0..chars.len() {
+            if chars[i] == '.' && i > 0 && !chars[i-1].is_ascii_digit() {
+                let segment: String = chars[last_split..i].iter().collect();
+                if !segment.is_empty() {
+                    result.push(segment);
+                }
+                last_split = i;
+            }
         }
         
-        while let Some(dot_pos) = remaining[1..].find('.') {
-            let (before, after) = remaining.split_at(dot_pos + 1);
-            if !before.is_empty() {
-                result.push(before.to_string());
+        if last_split < chars.len() {
+            let segment: String = chars[last_split..].iter().collect();
+            if !segment.is_empty() {
+                result.push(segment);
             }
-            // Keep the dot with the rest
-            remaining = after;
         }
-        result.push(remaining.to_string());
         
         result.into_iter()
     })
 }
+
 
 pub fn tokenise(inp: &str) -> Result<Vec<Token>, String> {
     if !inp.is_ascii() {
@@ -311,6 +313,7 @@ pub fn tokenise(inp: &str) -> Result<Vec<Token>, String> {
                 "Vec" => result.push(Token::Vec),
                 "RotMat" => result.push(Token::RotMat),
                 "RotVec" => result.push(Token::RotVec),
+                "Det" => result.push(Token::Det),
                 "Show" => result.push(Token::Show),
                 value => {
                     match value.parse() {
@@ -535,6 +538,10 @@ fn pratt_parse(vars: &HashMap<String, Obj>, lexer: &mut Buffer<Token>, min_bp: u
             let [a, b] = parse_func_boxed(vars, lexer)?;
             Ex::Vec(VecEx::New(a, b))
         },
+        Token::Det => {
+            let [a] = parse_func_boxed(vars, lexer)?;
+            Ex::Float(FloatEx::Det(a))
+        }
         other => return Err(format!("Unexpected token `{other:?}`."))
     };
 
@@ -586,6 +593,7 @@ fn pratt_parse(vars: &HashMap<String, Obj>, lexer: &mut Buffer<Token>, min_bp: u
 
 pub fn parse_exp(vars: &HashMap<String, Obj>, handler: &mut InputHandler) -> Option<(Line, bool)> {
     let tokenised = tokenise(&input("> ", handler));
+    println!("{tokenised:?}");
     match tokenised {
         Err(err) => eprintln!("{err}"),
         Ok(tokens) => match make_tree(vars, tokens) {
@@ -605,7 +613,7 @@ pub fn resolve_ex(ex: &Ex) -> Obj {
     }
 }
 
-fn resolve_float(ex: &FloatEx) -> f32 {
+pub fn resolve_float(ex: &FloatEx) -> f32 {
     match ex {
         FloatEx::A(ex) => resolve(ex).a(),
         FloatEx::B(ex) => resolve(ex).b(),
@@ -621,11 +629,12 @@ fn resolve_float(ex: &FloatEx) -> f32 {
         FloatEx::Neg(ex) => -resolve(ex),
         FloatEx::Dot(ex, ex1) => resolve(ex).dot(resolve(ex1)),
         FloatEx::Cross(ex, ex1) => {let a = resolve(ex); let b = resolve(ex1); a.x * b.y - a.y * b.x},
+        FloatEx::Det(ex) => resolve(ex).det(),
         FloatEx::Literal(float) => *float,
     }
 }
 
-fn resolve_mat(ex: &MatEx) -> Mat2 {
+pub fn resolve_mat(ex: &MatEx) -> Mat2 {
     match ex {
         MatEx::MatMul(ex, ex1) => resolve(ex) * resolve(ex1),
         MatEx::MatAdd(ex, ex1) => resolve(ex) + resolve(ex1),
@@ -647,7 +656,7 @@ fn resolve<T: ExTrait>(ex: &Box<T>) -> T::Output {
     T::resolve(ex.as_ref())
 }
 
-fn resolve_vec(ex: &VecEx) -> Vec2 {
+pub fn resolve_vec(ex: &VecEx) -> Vec2 {
     match ex {
         VecEx::VecMul(ex, ex1) => resolve(ex) * resolve(ex1),
         VecEx::VecAdd(ex, ex1) => resolve(ex) + resolve(ex1),

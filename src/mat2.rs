@@ -7,6 +7,8 @@ pub struct Mat2 {
     data: [f32; 4]
 }
 
+pub const I: Mat2 = Mat2::new(1.0, 0.0, 0.0, 1.0);
+
 impl Debug for Mat2 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.data.fmt(f)

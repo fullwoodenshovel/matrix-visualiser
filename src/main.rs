@@ -3,13 +3,12 @@ use input_handler::InputHandler;
 use std::{collections::HashMap, f32};
 mod parse;
 use parse::{parse_exp, Ex, Line, resolve_ex, for_each::{ExPointer, for_each}};
+use parse::visualise::{visualise, display_background};
+mod transform;
+use transform::{Transform, get_screen_dims};
 use macroquad::prelude::*;
 
-// struct Transform {
-//     scale: f32,
-//     offset: Mat2
-// }
-
+use crate::parse::{for_each::resolve_indexed, visualise::visualise_obj};
 
 fn conf() -> Conf {
     Conf {
@@ -27,6 +26,7 @@ async fn main() {
     vars.entry("tau".to_string()).insert_entry(parse::Obj::Float(f32::consts::TAU));
     vars.entry("e".to_string()).insert_entry(parse::Obj::Float(f32::consts::E));
     let mut handler = InputHandler::new().expect("Failed to initialise InputHandler");
+    display_go_to_term().await;
     loop {
         let Some((line, show)) = parse_exp(&vars, &mut handler) else {continue;};
 
@@ -47,34 +47,112 @@ async fn main() {
 
         if show {
             println!("Go to window for visualisation.");
-            visualise(ex).await;
+            graphics(ex).await;
+            display_go_to_term().await;
         }
     }
 }
 
-async fn visualise(ex: Ex) {
-    // let mut show_order = Vec::new();
-    loop {
-        clear_background(BLACK);
-        draw_tree(&ex);
+async fn graphics(ex: Ex) {
+    'main: loop {
         next_frame().await;
+
+        let order = 'tree: loop {
+            clear_background(BLACK);
+
+            let order = draw_tree(&ex);
+            
+            next_frame().await;
+            if is_key_pressed(KeyCode::Right) {
+                break 'tree order
+            }
+        };
+
+        next_frame().await;
+
+        let mut index = 0;
+        let mut time = get_frame_time() * SPEED;
+        let mut anim_done = false;
+        let mut transform = Transform::new(Vec2::new(0.0, 0.0), 0.01);
+        const SPEED: f32 = 1.0;
+
+        'visualise: loop {
+            clear_background(BLACK);
+            transform.move_camera();
+            transform.screen_dims = get_screen_dims();
+            display_background(&transform);
+
+            for x in -5..5 {
+                for y in -5..5 {
+                    let x = 2 * x;
+                    let y = 2 * y;
+                    let pos = transform.world_to_screen(vec2(x as f32, y as f32));
+                    draw_text(&format!("{x},{y}"), pos.x, pos.y, 18.0, GOLD);
+                }
+            }
+
+            if time > 0.0 {
+                if !anim_done {
+                    anim_done = visualise(order[index], time, &ex, &mut transform);
+                    time += get_frame_time() * SPEED;
+                }
+                if anim_done {
+                    index += 1;
+                    time = 0.0;
+                }
+            }
+
+            if time == 0.0 {
+                visualise_obj(resolve_indexed(order[index - 1], &ex), &mut transform);
+            }
+
+            if is_key_pressed(KeyCode::Left) && index == 0 {
+                break 'visualise
+            } else if is_key_pressed(KeyCode::Left) {
+                if time == 0.0 {
+                    index -= 1;
+                } else {
+                    time = 0.0;
+                }
+            } else if is_key_pressed(KeyCode::Right) {
+                if index == order.len() {
+                    loop {
+                        draw_text("End of visualisation.", 50.0, 50.0, 30.0, WHITE);
+                        next_frame().await;
+                        if is_key_pressed(KeyCode::Left) {
+                            break
+                        } else if is_key_pressed(KeyCode::Right) {
+                            break 'main
+                        }
+                    }
+                } else if time > 0.0 {
+                    index += 1;
+                    time = 0.0;
+                } else {
+                    time += get_frame_time() * SPEED;
+                    anim_done = false;
+                }
+            }
+
+            next_frame().await;
+        }
     }
 }
 
 fn get_total(ex: &Ex) -> Vec<usize> {
     fn closure(mut depths: Vec<usize>, _: ExPointer, depth: usize) -> Vec<usize> {
-        if depths.len() <= depth {
-            depths.push(1);
-        } else {
-            depths[depth] += 1;
+        while depths.len() <= depth {
+            depths.push(0);
         }
+        depths[depth] += 1;
+        
         depths
     }
     for_each(&mut closure, Vec::new(), ex)
 }
 
-fn draw_tree(ex: &Ex) {
-    let mouse = mouse_position();
+fn draw_tree(ex: &Ex) -> Vec<usize> {
+    // let mouse = mouse_position();
     let (width, height) = (screen_width(), screen_height());
     let totals = get_total(ex);
     let spacing = *[
@@ -91,23 +169,21 @@ fn draw_tree(ex: &Ex) {
     let x_offset = width / 2.0;
     let y_offset = spacing / 2.0;
 
-    for_each(&mut |_, ex, depth| {
-        let i;
-
-        if indicies.len() <= depth {
-            i = 0;
-            indicies.push(1);
-        } else {
-            i = indicies[depth];
-            indicies[depth] += 1;
+    for_each(&mut |mut order: Vec<usize>, ex, depth| {
+        while indicies.len() <= depth {
+            indicies.push(0);
         }
+
+        let i = indicies[depth];
+        indicies[depth] += 1;
+        
         
         let x = x_offset + spacing * (totals[depth] as f32 / -2.0 + 0.5 + i as f32);
         let y = y_offset + spacing * depth as f32;
         
         if depth != 0 {
             let j = indicies[depth - 1];
-            let parent_x = x_offset + spacing * (totals[depth - 1] as f32 / -2.0 - 0.5 + j as f32);
+            let parent_x = x_offset + spacing * (totals[depth - 1] as f32 / -2.0 + 0.5 + j as f32);
             let parent_y = y_offset + spacing * (depth - 1) as f32;
 
             draw_line(x, y, parent_x, parent_y, (spacing / 100.0).clamp(2.0, f32::INFINITY), LIGHTGRAY);
@@ -130,5 +206,20 @@ fn draw_tree(ex: &Ex) {
 
         draw_text(text, x - text_width / 2.0, y + offset_y / 3.0, scale as f32, BLUE);
 
-    }, (), ex)
+        match order.last() {
+            Some(last) => order.push(last + 1),
+            None => order.push(0),
+        }
+
+        order
+
+    }, Vec::new(), ex)
 }
+
+async fn display_go_to_term() {
+    clear_background(BLACK);
+    draw_text("Enter input in terminal", 50.0, 50.0, 30.0, WHITE);
+    next_frame().await;
+}
+
+// Show Mat(1,2,-3,3) * Mat(0.5,-1,1,-0.5)

@@ -1,8 +1,9 @@
 use std::fmt::Display;
 
-use super::{FloatEx, VecEx, MatEx, Ex};
+use super::{FloatEx, VecEx, MatEx, Ex, Obj, ExTrait};
 
 
+#[derive(Copy, Clone)]
 pub enum ExPointer<'a> {
     Mat(&'a MatEx),
     Float(&'a FloatEx),
@@ -47,6 +48,7 @@ impl<'a> Display for ExPointer<'a> {
                 FloatEx::Neg(_) => "- F",
                 FloatEx::Dot(_, _) => "V * V",
                 FloatEx::Cross(_, _) => "V x V",
+                FloatEx::Det(_) => "Det",
                 FloatEx::Literal(float) => &format_min_chars(*float),
             },
             ExPointer::Vec(ex) => match ex {
@@ -80,8 +82,23 @@ pub fn for_each<F: FnMut(T, ExPointer, usize) -> T, T>(f: &mut F, t: T, ex: &Ex)
     }
 }
 
-pub fn for_each_mat<'a, F: FnMut(T, ExPointer, usize) -> T, T>(f: &mut F, t: T, ex: &'a MatEx, depth: usize) -> T {
-    let mut t = f(t, ExPointer::<'a>::Mat(ex), depth);
+pub fn resolve_indexed(index: usize, ex: &Ex) -> Obj {
+    for_each(&mut |(mut curr, mut result), pointer, _| {
+        if curr == index {
+            result = Some(
+                match pointer {
+                    ExPointer::Mat(ex) => Obj::Mat(ExTrait::resolve(ex)),
+                    ExPointer::Float(ex) => Obj::Float(ExTrait::resolve(ex)),
+                    ExPointer::Vec(ex) => Obj::Vec(ExTrait::resolve(ex)),
+                }
+            )
+        }
+        curr += 1;
+        (curr, result)
+    }, (0, None), ex).1.unwrap()
+}
+
+pub fn for_each_mat<'a, F: FnMut(T, ExPointer, usize) -> T, T>(f: &mut F, mut t: T, ex: &'a MatEx, depth: usize) -> T {
     let next_depth = depth + 1;
     match ex {
         MatEx::MatMul(ex, ex1) |
@@ -114,11 +131,10 @@ pub fn for_each_mat<'a, F: FnMut(T, ExPointer, usize) -> T, T>(f: &mut F, t: T, 
         },
         MatEx::Literal(_) => (),
     };
-    t
+    f(t, ExPointer::<'a>::Mat(ex), depth)
 }
 
-pub fn for_each_float<'a, F: FnMut(T, ExPointer, usize) -> T, T>(f: &mut F, t: T, ex: &'a FloatEx, depth: usize) -> T {
-    let mut t = f(t, ExPointer::<'a>::Float(ex), depth);
+pub fn for_each_float<'a, F: FnMut(T, ExPointer, usize) -> T, T>(f: &mut F, mut t: T, ex: &'a FloatEx, depth: usize) -> T {
     let next_depth = depth + 1;
     match ex {
         FloatEx::A(ex) |
@@ -141,13 +157,14 @@ pub fn for_each_float<'a, F: FnMut(T, ExPointer, usize) -> T, T>(f: &mut F, t: T
             t = for_each_vec(f, t, ex, next_depth);
             t = for_each_vec(f, t, ex1, next_depth);
         },
+        FloatEx::Det(ex) => { t = for_each_mat(f, t, ex, next_depth) }
         FloatEx::Literal(_) => (),
     };
+    t = f(t, ExPointer::<'a>::Float(ex), depth);
     t
 }
 
-pub fn for_each_vec<'a, F: FnMut(T, ExPointer, usize) -> T, T>(f: &mut F, t: T, ex: &'a VecEx, depth: usize) -> T {
-    let mut t = f(t, ExPointer::<'a>::Vec(ex), depth);
+pub fn for_each_vec<'a, F: FnMut(T, ExPointer, usize) -> T, T>(f: &mut F, mut t: T, ex: &'a VecEx, depth: usize) -> T {
     let next_depth = depth + 1;
     match ex {
         VecEx::VecMul(ex, ex1) => {
@@ -176,6 +193,7 @@ pub fn for_each_vec<'a, F: FnMut(T, ExPointer, usize) -> T, T>(f: &mut F, t: T, 
         },
         VecEx::Literal(_) => (),
     };
+    t = f(t, ExPointer::<'a>::Vec(ex), depth);
     t
 }
 
