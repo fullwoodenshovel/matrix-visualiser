@@ -593,7 +593,6 @@ fn pratt_parse(vars: &HashMap<String, Obj>, lexer: &mut Buffer<Token>, min_bp: u
 
 pub fn parse_exp(vars: &HashMap<String, Obj>, handler: &mut InputHandler) -> Option<(Line, bool)> {
     let tokenised = tokenise(&input("> ", handler));
-    println!("{tokenised:?}");
     match tokenised {
         Err(err) => eprintln!("{err}"),
         Ok(tokens) => match make_tree(vars, tokens) {

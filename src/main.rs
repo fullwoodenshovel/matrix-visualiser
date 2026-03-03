@@ -2,13 +2,14 @@ mod mat2;
 use input_handler::InputHandler;
 use std::{collections::HashMap, f32};
 mod parse;
-use parse::{parse_exp, Ex, Line, resolve_ex, for_each::{ExPointer, for_each}};
-use parse::visualise::{visualise, display_background};
+use parse::{parse_exp, Ex, Line, resolve_ex, for_each::{ExPointer, for_each, resolve_indexed}};
+use parse::visualise::{visualise, display_background, visualise_obj};
 mod transform;
 use transform::{Transform, get_screen_dims};
 use macroquad::prelude::*;
 
-use crate::parse::{for_each::resolve_indexed, visualise::visualise_obj};
+// todo!() Add the rest of the visualisations
+// todo!() Add the currently in use variables as dark purple in the background
 
 fn conf() -> Conf {
     Conf {
@@ -25,6 +26,7 @@ async fn main() {
     vars.entry("pi".to_string()).insert_entry(parse::Obj::Float(f32::consts::PI));
     vars.entry("tau".to_string()).insert_entry(parse::Obj::Float(f32::consts::TAU));
     vars.entry("e".to_string()).insert_entry(parse::Obj::Float(f32::consts::E));
+    vars.entry("I".to_string()).insert_entry(parse::Obj::Mat(mat2::I));
     let mut handler = InputHandler::new().expect("Failed to initialise InputHandler");
     display_go_to_term().await;
     loop {
@@ -82,14 +84,14 @@ async fn graphics(ex: Ex) {
             transform.screen_dims = get_screen_dims();
             display_background(&transform);
 
-            for x in -5..5 {
-                for y in -5..5 {
-                    let x = 2 * x;
-                    let y = 2 * y;
-                    let pos = transform.world_to_screen(vec2(x as f32, y as f32));
-                    draw_text(&format!("{x},{y}"), pos.x, pos.y, 18.0, GOLD);
-                }
-            }
+            // for x in -5..5 {
+            //     for y in -5..5 {
+            //         let x = 2 * x;
+            //         let y = 2 * y;
+            //         let pos = transform.world_to_screen(vec2(x as f32, y as f32));
+            //         draw_text(&format!("{x},{y}"), pos.x, pos.y, 18.0, GOLD);
+            //     }
+            // }
 
             if time > 0.0 {
                 if !anim_done {
@@ -111,6 +113,9 @@ async fn graphics(ex: Ex) {
             } else if is_key_pressed(KeyCode::Left) {
                 if time == 0.0 {
                     index -= 1;
+                    if index == 0 {
+                        break 'visualise
+                    }
                 } else {
                     time = 0.0;
                 }
@@ -222,4 +227,13 @@ async fn display_go_to_term() {
     next_frame().await;
 }
 
-// Show Mat(1,2,-3,3) * Mat(0.5,-1,1,-0.5)
+// Show Mat(1,2,-3,3) * Mat(0.5,-1,1,0.5)
+
+/* 4 
+
+a = Mat(1,2,-3,3)
+b = Mat(0.5,-1,1,0.5)
+c = Mat(1.0,0.5,-2,0.5)
+Show c*(a+b)
+
+*/

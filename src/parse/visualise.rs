@@ -11,7 +11,7 @@ pub fn smooth_step(frac: f32) -> f32 {
 pub fn visualise_obj(obj: Obj, transform: &mut Transform) {
     match obj {
         Obj::Mat(mat) => display_mat_all(mat, transform, "i", "j"),
-        Obj::Vec(vec) => display_vec(vec, transform, "", DARKBLUE),
+        Obj::Vec(vec) => display_vec(vec, transform, ""),
         Obj::Float(float) => display_float(float, transform),
     }
 }
@@ -58,11 +58,14 @@ pub fn display_background(transform: &Transform) {
 pub fn visualise_individual(time: f32, ex: ExPointer, transform: &mut Transform) -> bool {
     match ex {
         ExPointer::Mat(ex) => match ex {
-            MatEx::MatMul(ex, ex1) => {
+            MatEx::MatMul(ex, ex1) => { // Currently flips to a different background then back again. consider changing so there is no background flip.
                 if time <= 3.0 {
                     let frac = smooth_step(time / 3.0);
-                    let mult = resolve(ex) * frac + I * (1.0 - frac);
-                    display_mat_all(mult, transform, "i", "j");
+                    let mat1 = resolve(ex);
+                    let mult = mat1 * frac + I * (1.0 - frac);
+                    display_mat_background(mult, transform);
+                    display_mat_foreground_with_col(mat1, transform, "i", "j", DARKPURPLE);
+                    display_mat_foreground(mult, transform, "i", "j");
                     display_mat_foreground(mult * resolve(ex1), transform, "i", "j");
                 } else if time <= 5.0 {
                     let frac = smooth_step((time - 3.0) / 2.0);
@@ -74,14 +77,29 @@ pub fn visualise_individual(time: f32, ex: ExPointer, transform: &mut Transform)
                 }
                 false
             },
-            // MatEx::MatAdd(ex, ex1) => {
-            //     if time <= 2.0 {
-            //         let frac = smooth_step(time / 2.0);
-            //         display_mat_all(resolve(ex1), transform, "i", "j");
-            //         // display_vec_offset(resolve(ex1), transform, "i", "j");
-            //     }
-            // },
-            MatEx::MatAdd(_, _) => true,
+            MatEx::MatAdd(ex, ex1) => {
+                if time <= 2.0 {
+                    let frac = smooth_step(time / 2.0);
+                    let mat1 = resolve(ex);
+                    let mat2 = resolve(ex1);
+                    display_mat_all(mat2 + mat1 * frac, transform, "i", "j");
+                    display_mat_foreground(mat1, transform, "i", "j");
+                    display_vec_offset_with_col(mat2.i(), mat1.i() * frac, transform, "",  GOLD);
+                    display_vec_offset_with_col(mat2.j(), mat1.j() * frac, transform, "",  GOLD);
+                } else if time <= 4.0 {
+                    let frac = smooth_step((time - 2.0) / 2.0);
+                    let mat1 = resolve(ex);
+                    let mat2 = resolve(ex1);
+                    display_mat_all(mat2 + mat1, transform, "i", "j");
+                    display_vec_offset_with_col(mat2.i() * (1.0 - frac), mat1.i() * (1.0 - frac), transform, "",  GOLD);
+                    display_vec_offset_with_col(mat2.j() * (1.0 - frac), mat1.j() * (1.0 - frac), transform, "",  GOLD);
+                    display_vec_with_col(mat1.i() * (1.0 - frac), transform, "",  GOLD);
+                    display_vec_with_col(mat1.j() * (1.0 - frac), transform, "",  GOLD);
+                } else {
+                    return true;
+                }
+                false
+            },
             MatEx::MatSub(ex, ex1) => true,
             MatEx::Neg(ex) => true,
             MatEx::Mul(ex, ex1) => true,
@@ -130,6 +148,24 @@ pub fn visualise_individual(time: f32, ex: ExPointer, transform: &mut Transform)
 }
 
 fn display_mat_background(mat: Mat2, transform: &Transform) {
+    display_mat_background_with_col(mat, transform, LIGHTGRAY, GRAY);
+}
+
+fn display_mat_foreground(mat: Mat2, transform: &mut Transform, labeli: &str, labelj: &str) {
+    display_mat_foreground_with_col(mat, transform, labeli, labelj, GOLD);
+}
+
+fn display_mat_foreground_with_col(mat: Mat2, transform: &mut Transform, labeli: &str, labelj: &str, colour: Color) {
+    display_vec_with_col(mat * vec2(1.0, 0.0), transform, labeli, colour);
+    display_vec_with_col(mat * vec2(0.0, 1.0), transform, labelj, colour);
+}
+
+fn display_mat_all(mat: Mat2, transform: &mut Transform, labeli: &str, labelj: &str) {
+    display_mat_background(mat, transform);
+    display_mat_foreground(mat, transform, labeli, labelj);
+}
+
+fn display_mat_background_with_col(mat: Mat2, transform: &Transform, axis: Color, others: Color) {
     if mat.det() == 0.0 {
         let dir = {
             let trial = mat * vec2(1.0, 0.0);
@@ -142,56 +178,57 @@ fn display_mat_background(mat: Mat2, transform: &Transform) {
         if dir.x.abs() < f32::EPSILON && dir.y.abs() < f32::EPSILON {
             return
         }
-        transform.draw_line(dir, vec2(0.0, 0.0), 2.0, LIGHTGRAY);
+        transform.draw_line(dir, vec2(0.0, 0.0), 2.0, axis);
     } else {
         let mut neg_x = -1.0;
-        while transform.draw_line(mat * vec2(neg_x, -1.0), mat * vec2(neg_x, 1.0), 2.0, GRAY) {
+        while transform.draw_line(mat * vec2(neg_x, -1.0), mat * vec2(neg_x, 1.0), 2.0, others) {
             neg_x -= 1.0;
         }
         let mut pos_x = 1.0;
-        while transform.draw_line(mat * vec2(pos_x, -1.0), mat * vec2(pos_x, 1.0), 2.0, GRAY) {
+        while transform.draw_line(mat * vec2(pos_x, -1.0), mat * vec2(pos_x, 1.0), 2.0, others) {
             pos_x += 1.0;
         }
         let mut neg_y = -1.0;
-        while transform.draw_line(mat * vec2(-1.0, neg_y), mat * vec2(1.0, neg_y), 2.0, GRAY) {
+        while transform.draw_line(mat * vec2(-1.0, neg_y), mat * vec2(1.0, neg_y), 2.0, others) {
             neg_y -= 1.0;
         }
         let mut pos_y = 1.0;
-        while transform.draw_line(mat * vec2(-1.0, pos_y), mat * vec2(1.0, pos_y), 2.0, GRAY) {
+        while transform.draw_line(mat * vec2(-1.0, pos_y), mat * vec2(1.0, pos_y), 2.0, others) {
             pos_y += 1.0;
         }
-
-        transform.draw_line(mat * vec2(-1.0, 0.0), mat * vec2(1.0, 0.0), 2.0, LIGHTGRAY);
-        transform.draw_line(mat * vec2(0.0, -1.0), mat * vec2(0.0, 1.0), 2.0, LIGHTGRAY);
+    
+        transform.draw_line(mat * vec2(-1.0, 0.0), mat * vec2(1.0, 0.0), 2.0, axis);
+        transform.draw_line(mat * vec2(0.0, -1.0), mat * vec2(0.0, 1.0), 2.0, axis);
     }
 }
 
-fn display_mat_foreground(mat: Mat2, transform: &mut Transform, labeli: &str, labelj: &str) {
-    display_vec(mat * vec2(1.0, 0.0), transform, labeli, GOLD);
-    display_vec(mat * vec2(0.0, 1.0), transform, labelj, GOLD);
+fn display_vec(vec: Vec2, transform: &mut Transform, label: &str) {
+    display_vec_with_col(vec, transform, label, DARKBLUE);
 }
 
-fn display_mat_all(mat: Mat2, transform: &mut Transform, labeli: &str, labelj: &str) {
-    display_mat_background(mat, transform);
-    display_mat_foreground(mat, transform, labeli, labelj);
+fn display_vec_with_col(vec: Vec2, transform: &mut Transform, label: &str, colour: Color) {
+    display_vec_offset_with_col(vec, vec2(0.0, 0.0), transform, label, colour);
 }
 
-fn display_vec(vec: Vec2, transform: &mut Transform, label: &str, colour: Color) {
-    display_vec_offset(vec, vec2(0.0, 0.0), transform, label, colour);
+fn display_vec_offset(vec: Vec2, offset: Vec2, transform: &mut Transform, label: &str) {
+    display_vec_offset_with_col(vec, offset, transform, label, DARKBLUE);
 }
 
-fn display_vec_offset(vec: Vec2, offset: Vec2, transform: &mut Transform, label: &str, colour: Color) {
+fn display_vec_offset_with_col(vec: Vec2, offset: Vec2, transform: &mut Transform, label: &str, colour: Color) {
     let normalized = vec.normalize_or(vec2(1.0, 0.0));
     let normalized = vec2(normalized.x, -normalized.y);
-    let pos = transform.world_to_screen(vec) + normalized * 20.0;
-    transform.draw_line_segment(vec, offset, 3.0, colour);
+    let arrow_multiplier = (transform.scale * vec.length()).min(20.0) / 20.0;
+    let p1 = transform.world_to_screen(vec + offset) - normalized * 5.0 * arrow_multiplier;
+    let p2 = transform.world_to_screen(offset);
+    draw_line(p1.x, p1.y, p2.x, p2.y, 3.0, colour);
+    let pos = transform.world_to_screen(vec + offset) + normalized * 20.0;
     draw_text(label, pos.x, pos.y, 26.0, colour);
     
     let end = transform.world_to_screen(vec + offset);
     draw_triangle(
         end,
-        normalized.perp() * 10.0 - normalized * 15.0 + end,
-        normalized.perp() * -10.0 - normalized * 15.0 + end,
+        normalized.perp() * 10.0 * arrow_multiplier - normalized * 15.0 * arrow_multiplier + end,
+        normalized.perp() * -10.0 * arrow_multiplier - normalized * 15.0 * arrow_multiplier + end,
         colour
     );
 
@@ -199,12 +236,15 @@ fn display_vec_offset(vec: Vec2, offset: Vec2, transform: &mut Transform, label:
     transform.point_of_interest(offset);
 }
 
-fn display_point(point: Vec2, transform: &Transform) {
-
+fn display_point(point: Vec2, transform: &mut Transform, label: &str, colour: Color) {
+    let pos = transform.world_to_screen(point);
+    draw_circle(pos.x, pos.y, 5.0, colour);
+    draw_text(label, pos.x, pos.y + 20.0, 26.0, colour);
+    transform.point_of_interest(point);
 }
 
-fn display_float(float: f32, transform: &Transform) {
-    display_point(vec2(float, 0.0), transform)
+fn display_float(float: f32, transform: &mut Transform) {
+    display_point(vec2(float, 0.0), transform, &float.to_string(), RED)
 }
 
 // fn triangles_to_rect(triangles: &[(Vec2, Vec2, Vec2)], rect_pos: Vec2, rect_height: f32, time: f32) -> f32 {
@@ -263,11 +303,4 @@ fn line_segments_intersect(a1: Vec2, a2: Vec2, b1: Vec2, b2: Vec2) -> bool {
     let ub = ((a2.x - a1.x) * (a1.y - b1.y) - (a2.y - a1.y) * (a1.x - b1.x)) / denominator;
     
     (0.0..=1.0).contains(&ua) && (0.0..=1.0).contains(&ub)
-}
-
-fn sanitise_time(time: Option<f32>, max: f32) -> f32 {
-    match time {
-        Some(time) => time / max,
-        None => 1.0
-    }
 }

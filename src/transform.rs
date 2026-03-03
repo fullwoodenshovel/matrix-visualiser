@@ -3,9 +3,9 @@ use macroquad::prelude::*;
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Transform {
-    pub offset: Vec2,
-    /// The screen width / height of one in-game unit
-    scale: f32,
+    offset: Vec2,
+    /// The screen width / height of one in-game unit. how many pixels in one unit
+    pub scale: f32,
     pub screen_dims: Vec2,
     pub target_rect: Rect,
     prev_actual: Option<Rect>

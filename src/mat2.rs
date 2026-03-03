@@ -134,4 +134,12 @@ impl Mat2 {
         let det = self.det();
         Mat2::new(self.data[3], -self.data[1], -self.data[2], self.data[0]) / det
     }
+
+    pub fn i(&self) -> Vec2 {
+        Vec2::new(self.data[0], self.data[2])
+    }
+
+    pub fn j(&self) -> Vec2 {
+        Vec2::new(self.data[1], self.data[3])
+    }
 }
