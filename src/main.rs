@@ -10,7 +10,12 @@ use transform::{Transform, get_screen_dims};
 use macroquad::prelude::*;
 
 // todo!() Add the rest of the visualisations
-// todo!() Add the currently in use variables as dark purple in the background
+// todo!() Display the equation used and highlight the specific part of the equation being displayed, and return the result from it
+// todo!() Add an independent feature that allows for alternate visualisations e.g.:
+//  - alternate visualisations of -M having 180 degree rotation and multiplying the vectors by -1
+//  - visual proof that A(BC) = (AB)C
+//  - visual proof that A + B = B + A
+
 
 fn conf() -> Conf {
     Conf {
@@ -249,7 +254,7 @@ async fn display_go_to_term() {
 a = Mat(1,2,-3,3)
 b = Mat(0.5,-1,1,0.5)
 c = Mat(1.0,0.5,-2,0.5)
-Show c*(a-b)
+Show c*(a-b) + b
 
 */
 
