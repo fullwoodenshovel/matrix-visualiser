@@ -108,12 +108,12 @@ impl Transform {
         }
     }
 
-    /// This is in world coordinates
-    pub fn draw_line_segment(&self, p1: Vec2, p2: Vec2, width: f32, colour: Color) {
-        let p1 = self.world_to_screen(p1);
-        let p2 = self.world_to_screen(p2);
-        draw_line(p1.x, p1.y, p2.x, p2.y, width, colour);
-    }
+    // /// This is in world coordinates
+    // pub fn draw_line_segment(&self, p1: Vec2, p2: Vec2, width: f32, colour: Color) {
+    //     let p1 = self.world_to_screen(p1);
+    //     let p2 = self.world_to_screen(p2);
+    //     draw_line(p1.x, p1.y, p2.x, p2.y, width, colour);
+    // }
 
     /// This is in world coordinates
     pub fn draw_line(&self, p1: Vec2, p2: Vec2, width: f32, colour: Color) -> bool {

@@ -1,13 +1,39 @@
-use std::fmt::Display;
+use std::{collections::VecDeque, fmt::Display};
 
-use super::{FloatEx, VecEx, MatEx, Ex, Obj, ExTrait};
+use crate::parse::{resolve_mat, resolve_float, resolve_vec};
+
+use super::{FloatEx, VecEx, MatEx, Ex, Obj};
 
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub enum ExPointer<'a> {
     Mat(&'a MatEx),
     Float(&'a FloatEx),
     Vec(&'a VecEx),
+}
+
+impl<'a> ExPointer<'a> {
+    pub fn resolve(self) -> Obj {
+        match self {
+            ExPointer::Mat(ex) => Obj::Mat(resolve_mat(ex)),
+            ExPointer::Float(ex) => Obj::Float(resolve_float(ex)),
+            ExPointer::Vec(ex) => Obj::Vec(resolve_vec(ex)),
+        }
+    }
+
+    pub fn pointer_eq(self, other: ExPointer) -> bool {
+        match self {
+            ExPointer::Mat(ex) => if let ExPointer::Mat(ex1) = other {
+                std::ptr::eq(ex, ex1)
+            } else { false },
+            ExPointer::Float(ex) => if let ExPointer::Float(ex1) = other {
+                std::ptr::eq(ex, ex1)
+            } else { false },
+            ExPointer::Vec(ex) => if let ExPointer::Vec(ex1) = other {
+                std::ptr::eq(ex, ex1)
+            } else { false },
+        }
+    }
 }
 
 impl<'a> Display for ExPointer<'a> {
@@ -74,127 +100,137 @@ impl<'a> Display for ExPointer<'a> {
     }
 }
 
-pub fn for_each<F: FnMut(T, ExPointer, usize) -> T, T>(f: &mut F, t: T, ex: &Ex) -> T {
-    match ex {
-        Ex::Mat(ex) => for_each_mat(f, t, ex, 0) ,
-        Ex::Vec(ex) => for_each_vec(f, t, ex, 0) ,
-        Ex::Float(ex) => for_each_float(f, t, ex, 0) ,
+/// Toggling reverse_children and children_first is equivalent to reversing the order of the returned Vec.
+pub fn for_each(ex: &Ex, children_first: bool, reverse_children: bool) -> VecDeque<(ExPointer<'_>, usize)> {
+    let mut result = match ex {
+        Ex::Mat(ex) => for_each_mat(ex, 0, children_first ^ reverse_children),
+        Ex::Vec(ex) => for_each_vec(ex, 0, children_first ^ reverse_children),
+        Ex::Float(ex) => for_each_float(ex, 0, children_first ^ reverse_children),
+    };
+    if reverse_children {
+        result.make_contiguous().reverse();
     }
+    result
 }
 
 pub fn resolve_indexed(index: usize, ex: &Ex) -> Obj {
-    for_each(&mut |(mut curr, mut result), pointer, _| {
-        if curr == index {
-            result = Some(
-                match pointer {
-                    ExPointer::Mat(ex) => Obj::Mat(ExTrait::resolve(ex)),
-                    ExPointer::Float(ex) => Obj::Float(ExTrait::resolve(ex)),
-                    ExPointer::Vec(ex) => Obj::Vec(ExTrait::resolve(ex)),
-                }
-            )
-        }
-        curr += 1;
-        (curr, result)
-    }, (0, None), ex).1.unwrap()
+    for_each(ex, true, false)[index].0.resolve()
 }
 
-pub fn for_each_mat<'a, F: FnMut(T, ExPointer, usize) -> T, T>(f: &mut F, mut t: T, ex: &'a MatEx, depth: usize) -> T {
+pub fn for_each_mat<'a>(ex: &'a MatEx, depth: usize, children_first: bool) -> VecDeque<(ExPointer<'a>, usize)> {
     let next_depth = depth + 1;
+    let mut result = VecDeque::new();
     match ex {
         MatEx::MatMul(ex, ex1) |
         MatEx::MatAdd(ex, ex1) |
         MatEx::MatSub(ex, ex1) => {
-            t = for_each_mat(f, t, ex, next_depth);
-            t = for_each_mat(f, t, ex1, next_depth);
+            result.append(&mut for_each_mat(ex, next_depth, children_first));
+            result.append(&mut for_each_mat(ex1, next_depth, children_first));
         },
         MatEx::Mul(ex, ex1) => {
-            t = for_each_float(f, t, ex, next_depth);
-            t = for_each_mat(f, t, ex1, next_depth);
+            result.append(&mut for_each_float(ex, next_depth, children_first));
+            result.append(&mut for_each_mat(ex1, next_depth, children_first));
         }
         MatEx::Neg(ex) |
-        MatEx::Inv(ex) => { t = for_each_mat(f, t, ex, next_depth) },
+        MatEx::Inv(ex) => result.append(&mut for_each_mat(ex, next_depth, children_first)),
         MatEx::Div(ex, ex1) => {
-            t = for_each_mat(f, t, ex, next_depth);
-            t = for_each_float(f, t, ex1, next_depth);
+            result.append(&mut for_each_mat(ex, next_depth, children_first));
+            result.append(&mut for_each_float(ex1, next_depth, children_first));
         },
-        MatEx::Rot(ex) => { t = for_each_float(f, t, ex, next_depth) },
+        MatEx::Rot(ex) => result.append(&mut for_each_float(ex, next_depth, children_first)),
         MatEx::New(ex, ex1, ex2, ex3) => {
-            t = for_each_float(f, t, ex, next_depth);
-            t = for_each_float(f, t, ex1, next_depth);
-            t = for_each_float(f, t, ex2, next_depth);
-            t = for_each_float(f, t, ex3, next_depth);
+            result.append(&mut for_each_float(ex, next_depth, children_first));
+            result.append(&mut for_each_float(ex1, next_depth, children_first));
+            result.append(&mut for_each_float(ex2, next_depth, children_first));
+            result.append(&mut for_each_float(ex3, next_depth, children_first));
         },
         MatEx::Vert(ex, ex1) |
         MatEx::Hor(ex, ex1) => {
-            t = for_each_vec(f, t, ex, next_depth);
-            t = for_each_vec(f, t, ex1, next_depth);
+            result.append(&mut for_each_vec(ex, next_depth, children_first));
+            result.append(&mut for_each_vec(ex1, next_depth, children_first));
         },
         MatEx::Literal(_) => (),
+        
     };
-    f(t, ExPointer::<'a>::Mat(ex), depth)
+    if children_first {
+        result.push_back((ExPointer::Mat(ex), depth));
+    } else {
+        result.push_front((ExPointer::Mat(ex), depth));
+    }
+    result
 }
 
-pub fn for_each_float<'a, F: FnMut(T, ExPointer, usize) -> T, T>(f: &mut F, mut t: T, ex: &'a FloatEx, depth: usize) -> T {
+pub fn for_each_float<'a>(ex: &'a FloatEx, depth: usize, children_first: bool) -> VecDeque<(ExPointer<'a>, usize)> {
     let next_depth = depth + 1;
+    let mut result = VecDeque::new();
     match ex {
         FloatEx::A(ex) |
         FloatEx::B(ex) |
         FloatEx::C(ex) |
-        FloatEx::D(ex) => { t = for_each_mat(f, t, ex, next_depth) },
+        FloatEx::D(ex) => result.append(&mut for_each_mat(ex, next_depth, children_first)),
         FloatEx::X(ex) |
-        FloatEx::Y(ex) => { t = for_each_vec(f, t, ex, next_depth) },
+        FloatEx::Y(ex) => result.append(&mut for_each_vec(ex, next_depth, children_first)),
         FloatEx::Mul(ex, ex1) |
         FloatEx::Div(ex, ex1) |
         FloatEx::Pow(ex, ex1) |
         FloatEx::Add(ex, ex1) |
         FloatEx::Sub(ex, ex1) => {
-            t = for_each_float(f, t, ex, next_depth);
-            t = for_each_float(f, t, ex1, next_depth);
+            result.append(&mut for_each_float(ex, next_depth, children_first));
+            result.append(&mut for_each_float(ex1, next_depth, children_first));
         },
-        FloatEx::Neg(ex) => { t = for_each_float(f, t, ex, next_depth) },
+        FloatEx::Neg(ex) => result.append(&mut for_each_float(ex, next_depth, children_first)),
         FloatEx::Dot(ex, ex1) |
         FloatEx::Cross(ex, ex1) => {
-            t = for_each_vec(f, t, ex, next_depth);
-            t = for_each_vec(f, t, ex1, next_depth);
+            result.append(&mut for_each_vec(ex, next_depth, children_first));
+            result.append(&mut for_each_vec(ex1, next_depth, children_first));
         },
-        FloatEx::Det(ex) => { t = for_each_mat(f, t, ex, next_depth) }
+        FloatEx::Det(ex) => result.append(&mut for_each_mat(ex, next_depth, children_first)),
         FloatEx::Literal(_) => (),
     };
-    t = f(t, ExPointer::<'a>::Float(ex), depth);
-    t
+    if children_first {
+        result.push_back((ExPointer::Float(ex), depth));
+    } else {
+        result.push_front((ExPointer::Float(ex), depth));
+    }
+    result
 }
 
-pub fn for_each_vec<'a, F: FnMut(T, ExPointer, usize) -> T, T>(f: &mut F, mut t: T, ex: &'a VecEx, depth: usize) -> T {
+pub fn for_each_vec<'a>(ex: &'a VecEx, depth: usize, children_first: bool) -> VecDeque<(ExPointer<'a>, usize)> {
     let next_depth = depth + 1;
+    let mut result = VecDeque::new();
     match ex {
         VecEx::VecMul(ex, ex1) => {
-            t = for_each_mat(f, t, ex, next_depth);
-            t = for_each_vec(f, t, ex1, next_depth);
+            result.append(&mut for_each_mat(ex, next_depth, children_first));
+            result.append(&mut for_each_vec(ex1, next_depth, children_first));
         },
         VecEx::VecAdd(ex, ex1) |
         VecEx::VecSub(ex, ex1) => {
-            t = for_each_vec(f, t, ex, next_depth);
-            t = for_each_vec(f, t, ex1, next_depth);
+            result.append(&mut for_each_vec(ex, next_depth, children_first));
+            result.append(&mut for_each_vec(ex1, next_depth, children_first));
         },
-        VecEx::Neg(ex) => { t = for_each_vec(f, t, ex, next_depth) },
+        VecEx::Neg(ex) => result.append(&mut for_each_vec(ex, next_depth, children_first)),
         VecEx::Mul(ex, ex1) |
         VecEx::Div(ex1, ex) => {
-            t = for_each_float(f, t, ex, next_depth);
-            t = for_each_vec(f, t, ex1, next_depth);
+            result.append(&mut for_each_float(ex, next_depth, children_first));
+            result.append(&mut for_each_vec(ex1, next_depth, children_first));
         },
-        VecEx::Rot(ex) => { t = for_each_float(f, t, ex, next_depth) },
+        VecEx::Rot(ex) => result.append(&mut for_each_float(ex, next_depth, children_first)),
         VecEx::Left(ex) |
         VecEx::Right(ex) |
         VecEx::Top(ex) |
-        VecEx::Bottom(ex) => { t = for_each_mat(f, t, ex, next_depth) },
+        VecEx::Bottom(ex) => result.append(&mut for_each_mat(ex, next_depth, children_first)),
         VecEx::New(ex, ex1) => {
-            t = for_each_float(f, t, ex, next_depth);
-            t = for_each_float(f, t, ex1, next_depth);
+            result.append(&mut for_each_float(ex, next_depth, children_first));
+            result.append(&mut for_each_float(ex1, next_depth, children_first));
         },
         VecEx::Literal(_) => (),
     };
-    t = f(t, ExPointer::<'a>::Vec(ex), depth);
-    t
+    if children_first {
+        result.push_back((ExPointer::Vec(ex), depth));
+    } else {
+        result.push_front((ExPointer::Vec(ex), depth));
+    }
+    result
 }
 
 fn format_min_chars(x: f32) -> String {

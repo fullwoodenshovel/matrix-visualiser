@@ -2,7 +2,8 @@ mod mat2;
 use input_handler::InputHandler;
 use std::{collections::HashMap, f32};
 mod parse;
-use parse::{parse_exp, Ex, Line, resolve_ex, for_each::{ExPointer, for_each, resolve_indexed}};
+use parse::{parse_exp, Ex, Line, resolve_ex};
+use parse::for_each::{for_each, resolve_indexed};
 use parse::visualise::{visualise, display_background, visualise_obj};
 mod transform;
 use transform::{Transform, get_screen_dims};
@@ -14,7 +15,6 @@ use macroquad::prelude::*;
 fn conf() -> Conf {
     Conf {
         window_title: "Matrix Visualiser".to_string(),
-        // Request 4x Multisampling
         sample_count: 4,
         ..Default::default()
     }
@@ -84,14 +84,27 @@ async fn graphics(ex: Ex) {
             transform.screen_dims = get_screen_dims();
             display_background(&transform);
 
-            // for x in -5..5 {
-            //     for y in -5..5 {
-            //         let x = 2 * x;
-            //         let y = 2 * y;
-            //         let pos = transform.world_to_screen(vec2(x as f32, y as f32));
-            //         draw_text(&format!("{x},{y}"), pos.x, pos.y, 18.0, GOLD);
-            //     }
-            // }
+            let vec = for_each(&ex, false, true);
+
+            // This algorithm does the following:
+            // walk the tree backwards, until reaching index of target. all these values are special cases and do not need to be displayed.
+            // set target_depth to depth of this index, and display.
+            // when walking backwards, if target_depth >= depth, display and set target_depth to depth.
+            if index < order.len() { // This doesnt work if order isnt simply [0,1,2,...]
+                let current_ex = for_each(&ex, true, false)[order[index]].0;
+                let new_index = vec.iter().position(|d| d.0.pointer_eq(current_ex)).unwrap();
+                let mut target_depth = if time == 0.0 {
+                    vec[new_index].1 + 1
+                } else {
+                    vec[new_index].1
+                };
+                for (ex, depth) in vec.range(new_index + 1..order.len()) {
+                    if target_depth >= *depth {
+                        visualise_obj(ex.resolve(), &mut transform, true);
+                        target_depth = *depth;
+                    }
+                }
+            }
 
             if time > 0.0 {
                 if !anim_done {
@@ -105,7 +118,7 @@ async fn graphics(ex: Ex) {
             }
 
             if time == 0.0 {
-                visualise_obj(resolve_indexed(order[index - 1], &ex), &mut transform);
+                visualise_obj(resolve_indexed(order[index - 1], &ex), &mut transform, false);
             }
 
             if is_key_pressed(KeyCode::Left) && index == 0 {
@@ -145,15 +158,16 @@ async fn graphics(ex: Ex) {
 }
 
 fn get_total(ex: &Ex) -> Vec<usize> {
-    fn closure(mut depths: Vec<usize>, _: ExPointer, depth: usize) -> Vec<usize> {
+    let mut depths = Vec::new();
+
+    for (_, depth) in for_each(ex, true, false) {
         while depths.len() <= depth {
             depths.push(0);
         }
         depths[depth] += 1;
-        
-        depths
     }
-    for_each(&mut closure, Vec::new(), ex)
+
+    depths
 }
 
 fn draw_tree(ex: &Ex) -> Vec<usize> {
@@ -174,7 +188,9 @@ fn draw_tree(ex: &Ex) -> Vec<usize> {
     let x_offset = width / 2.0;
     let y_offset = spacing / 2.0;
 
-    for_each(&mut |mut order: Vec<usize>, ex, depth| {
+    let mut order = Vec::new();
+    
+    for (ex, depth) in for_each(ex, true, false) {
         while indicies.len() <= depth {
             indicies.push(0);
         }
@@ -215,10 +231,9 @@ fn draw_tree(ex: &Ex) -> Vec<usize> {
             Some(last) => order.push(last + 1),
             None => order.push(0),
         }
+    }
 
-        order
-
-    }, Vec::new(), ex)
+    order
 }
 
 async fn display_go_to_term() {
@@ -229,11 +244,43 @@ async fn display_go_to_term() {
 
 // Show Mat(1,2,-3,3) * Mat(0.5,-1,1,0.5)
 
-/* 4 
+/*
 
 a = Mat(1,2,-3,3)
 b = Mat(0.5,-1,1,0.5)
 c = Mat(1.0,0.5,-2,0.5)
-Show c*(a+b)
+Show c*(a-b)
 
 */
+
+// [
+//     (
+//         Mat(MatMul(
+//             Literal([1.0, 0.5, -2.0, 0.5]),
+//             MatAdd(
+//                 Literal([1.0, 2.0, -3.0, 3.0]),
+//                 Literal([0.5, -1.0, 1.0, 0.5])
+//             )
+//         )),
+//         0
+//     ),
+//     (
+//         Mat(MatAdd(
+//             Literal([1.0, 2.0, -3.0, 3.0]),
+//             Literal([0.5, -1.0, 1.0, 0.5])
+//         )),
+//         1
+//     ),
+//     (
+//         Mat(Literal([0.5, -1.0, 1.0, 0.5])),
+//         2
+//     ),
+//     (
+//         Mat(Literal([1.0, 2.0, -3.0, 3.0])),
+//         2
+//     ),
+//     (
+//         Mat(Literal([1.0, 0.5, -2.0, 0.5])),
+//         1
+//     )
+// ]

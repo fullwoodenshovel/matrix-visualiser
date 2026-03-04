@@ -14,7 +14,7 @@ pub fn input(prompt: &str, handler: &mut InputHandler) -> String {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum MatEx {
     MatMul(Box<MatEx>, Box<MatEx>),
     MatAdd(Box<MatEx>, Box<MatEx>),
@@ -30,7 +30,7 @@ pub enum MatEx {
     Literal(Mat2)
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum VecEx {
     VecMul(Box<MatEx>, Box<VecEx>),
     VecAdd(Box<VecEx>, Box<VecEx>),
@@ -47,7 +47,7 @@ pub enum VecEx {
     Literal(Vec2)
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum FloatEx {
     A(Box<MatEx>),
     B(Box<MatEx>),
@@ -183,6 +183,7 @@ pub enum Token {
     Top,
     Bottom,
     Hor,
+    Inv,
     Vert,
     RotMat,
     RotVec,
@@ -308,6 +309,7 @@ pub fn tokenise(inp: &str) -> Result<Vec<Token>, String> {
                 "Top" => result.push(Token::Top),
                 "Bottom" => result.push(Token::Bottom),
                 "Hor" => result.push(Token::Hor),
+                "Inv" => result.push(Token::Inv),
                 "Vert" => result.push(Token::Vert),
                 "Mat" => result.push(Token::Mat),
                 "Vec" => result.push(Token::Vec),
@@ -500,6 +502,10 @@ fn pratt_parse(vars: &HashMap<String, Obj>, lexer: &mut Buffer<Token>, min_bp: u
             let [a, b] = parse_func_boxed(vars, lexer)?;
             Ex::Mat(MatEx::Hor(a, b))
         },
+        Token::Inv => {
+            let [a] = parse_func_boxed(vars, lexer)?;
+            Ex::Mat(MatEx::Inv(a))
+        }
         Token::Vert => {
             let [a, b] = parse_func_boxed(vars, lexer)?;
             Ex::Mat(MatEx::Vert(a, b))

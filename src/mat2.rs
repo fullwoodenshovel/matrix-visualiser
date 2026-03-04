@@ -2,7 +2,7 @@ use std::{fmt::Debug, ops::{Add, Div, Mul, Neg, Sub}};
 
 use macroquad::math::Vec2;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct Mat2 {
     data: [f32; 4]
 }

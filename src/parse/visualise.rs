@@ -8,27 +8,31 @@ pub fn smooth_step(frac: f32) -> f32 {
     frac * frac * (3.0 - 2.0 * frac)
 }
 
-pub fn visualise_obj(obj: Obj, transform: &mut Transform) {
-    match obj {
-        Obj::Mat(mat) => display_mat_all(mat, transform, "i", "j"),
-        Obj::Vec(vec) => display_vec(vec, transform, ""),
-        Obj::Float(float) => display_float(float, transform),
+pub fn visualise_obj(obj: Obj, transform: &mut Transform, background: bool) {
+    if background {
+        match obj {
+            Obj::Mat(mat) => {
+                display_mat_foreground_with_col(mat, transform, "i", "j", DARKPURPLE);
+            },
+            Obj::Vec(vec) => display_vec_with_col(vec, transform, "", DARKPURPLE),
+            Obj::Float(float) => display_float_with_col(float, transform, DARKPURPLE),
+        }
+    } else {
+        match obj {
+            Obj::Mat(mat) => display_mat_all(mat, transform, "i", "j"),
+            Obj::Vec(vec) => display_vec(vec, transform, ""),
+            Obj::Float(float) => display_float(float, transform),
+        }
     }
 }
 
 pub fn visualise(index: usize, time: f32, ex: &Ex, transform: &mut Transform) -> bool {
 
-    let mut anim_done = false;
-
-    for_each(&mut |comp, ex, _| {
-        if index == comp {
-            anim_done = visualise_individual(time, ex, transform);
-            if !anim_done {
-                display_ex_label(ex, transform);
-            }
-        };
-        comp + 1
-    }, 0, ex);
+    let indexed = for_each(ex, true, false)[index].0;
+    let anim_done = visualise_individual(time, indexed, transform);
+    if !anim_done {
+        display_ex_label(indexed, transform);
+    }
 
     anim_done
 }
@@ -100,7 +104,36 @@ pub fn visualise_individual(time: f32, ex: ExPointer, transform: &mut Transform)
                 }
                 false
             },
-            MatEx::MatSub(ex, ex1) => true,
+            MatEx::MatSub(ex, ex1) => {
+                if time <= 2.0 {
+                    let frac = smooth_step(time / 2.0);
+                    let mat1 = resolve(ex);
+                    let mat2 = resolve(ex1);
+                    display_mat_foreground(mat1, transform, "i", "j");
+                    display_mat_background(mat2, transform);
+                    display_mat_foreground(Mat2::rotation(frac * std::f32::consts::PI) * mat2, transform, "i", "j");
+                } else if time <= 4.0 {
+                    let frac = smooth_step((time - 2.0) / 2.0);
+                    let mat1 = resolve(ex);
+                    let mat2 = -resolve(ex1);
+                    display_mat_all(mat2 + mat1 * frac, transform, "i", "j");
+                    display_mat_foreground(mat1, transform, "i", "j");
+                    display_vec_offset_with_col(mat2.i(), mat1.i() * frac, transform, "",  GOLD);
+                    display_vec_offset_with_col(mat2.j(), mat1.j() * frac, transform, "",  GOLD);
+                } else if time <= 6.0 {
+                    let frac = smooth_step((time - 4.0) / 2.0);
+                    let mat1 = resolve(ex);
+                    let mat2 = -resolve(ex1);
+                    display_mat_all(mat2 + mat1, transform, "i", "j");
+                    display_vec_offset_with_col(mat2.i() * (1.0 - frac), mat1.i() * (1.0 - frac), transform, "",  GOLD);
+                    display_vec_offset_with_col(mat2.j() * (1.0 - frac), mat1.j() * (1.0 - frac), transform, "",  GOLD);
+                    display_vec_with_col(mat1.i() * (1.0 - frac), transform, "",  GOLD);
+                    display_vec_with_col(mat1.j() * (1.0 - frac), transform, "",  GOLD);
+                } else {
+                    return true;
+                }
+                false
+            },
             MatEx::Neg(ex) => true,
             MatEx::Mul(ex, ex1) => true,
             MatEx::Div(ex, ex1) => true,
@@ -244,7 +277,11 @@ fn display_point(point: Vec2, transform: &mut Transform, label: &str, colour: Co
 }
 
 fn display_float(float: f32, transform: &mut Transform) {
-    display_point(vec2(float, 0.0), transform, &float.to_string(), RED)
+    display_float_with_col(float, transform, RED);
+}
+
+fn display_float_with_col(float: f32, transform: &mut Transform, colour: Color) {
+    display_point(vec2(float, 0.0), transform, &float.to_string(), colour)
 }
 
 // fn triangles_to_rect(triangles: &[(Vec2, Vec2, Vec2)], rect_pos: Vec2, rect_height: f32, time: f32) -> f32 {
