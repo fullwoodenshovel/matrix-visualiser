@@ -9,9 +9,11 @@ mod transform;
 use transform::{Transform, get_screen_dims};
 use macroquad::prelude::*;
 
-// todo!() Add the rest of the visualisations
-// todo!() Display the equation used and highlight the specific part of the equation being displayed, and return the result from it
-// todo!() Add an independent feature that allows for alternate visualisations e.g.:
+// todo!() Add the rest of the visualisations.
+// todo!() Up arrow and down arrow to speed up and slow down.
+// todo!() Display the equation used and highlight the specific part of the equation being displayed, and return the result from it.
+// todo!() Make tree clickable to decide what is not required to visualise.
+// todo!() Add an independent feature that allows for alternative predefined visualisations, accessed using "Show" e.g.:
 //  - alternate visualisations of -M having 180 degree rotation and multiplying the vectors by -1
 //  - visual proof that A(BC) = (AB)C
 //  - visual proof that A + B = B + A

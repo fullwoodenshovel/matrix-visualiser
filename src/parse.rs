@@ -460,6 +460,10 @@ fn parse_func<const N: usize, T: ExTrait>(vars: &HashMap<String, Obj>, lexer: &m
     
     result[N - 1] = Some(T::concrete_err(pratt_parse(vars, lexer, 0)?)?);
 
+    if lexer.peek().is_none() {
+        return Err("No close bracket after function call".to_string())
+    }
+
     let token = lexer.next();
 
     if Token::RBrace != token {
@@ -474,6 +478,9 @@ fn parse_func_boxed<const N: usize, T: ExTrait>(vars: &HashMap<String, Obj>, lex
 }
 
 fn pratt_parse(vars: &HashMap<String, Obj>, lexer: &mut Buffer<Token>, min_bp: u8) -> Result<Ex, String> {
+    if lexer.peek().is_none() {
+        return Err("Expected value.".to_string());
+    }
     let mut lhs = match lexer.next() { // todo!() Test "3 +"
         Token::Float(float) => Ex::Float(FloatEx::Literal(float)),
         Token::VarName(name) => match vars.get(&name) {
