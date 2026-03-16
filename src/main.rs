@@ -125,7 +125,12 @@ async fn graphics(ex: Ex) {
             }
 
             if time == 0.0 {
-                visualise_obj(resolve_indexed(order[index - 1], &ex), &mut transform, false);
+                let obj = resolve_indexed(order[index - 1], &ex);
+                visualise_obj(obj, &mut transform, false);
+
+                let text = obj.to_string();
+                let w = measure_text(&text, None, 18, 1.0).width;
+                draw_text(&text, transform.screen_dims.x / 2.0 - w / 2.0, 26.0, 18.0, WHITE);
             }
 
             if is_key_pressed(KeyCode::Left) && index == 0 {
@@ -259,6 +264,14 @@ c = Mat(1.0,0.5,-2,0.5)
 Show c*(a-b) + b
 
 Show Mat(1.0,0.5,-2,0.5)*(Mat(1,2,-3,3)-Mat(0.5,-1,1,0.5))
+
+
+a=Vec(12,5)
+b=Vec(-2,3)
+ap=Vec(-5,-7)
+bp=Vec(6,-2)
+m=Vert(ap, bp) * Inv(Vert(a,b))
+Show m*Vert(a,b)
 
 */
 

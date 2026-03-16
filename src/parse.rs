@@ -67,6 +67,7 @@ pub enum FloatEx {
     Literal(f32)
 }
 
+#[derive(Clone, Copy)]
 pub enum Obj {
     Mat(Mat2),
     Vec(Vec2),
@@ -80,6 +81,13 @@ impl Debug for Obj {
             Obj::Vec(vec2) => vec2.fmt(f),
             Obj::Float(float) => float.fmt(f),
         }
+    }
+}
+
+#[allow(clippy::to_string_trait_impl)]
+impl ToString for Obj {
+    fn to_string(&self) -> String {
+        format!("{self:?}")
     }
 }
 

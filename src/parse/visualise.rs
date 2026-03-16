@@ -37,16 +37,12 @@ pub fn visualise(index: usize, time: f32, ex: &Ex, transform: &mut Transform) ->
     let indexed = for_each(ex, true, false)[index].0;
     let anim_done = visualise_individual(time, indexed, transform);
     if !anim_done {
-        display_ex_label(indexed, transform);
+        let text = indexed.to_string();
+        let w = measure_text(&text, None, 18, 1.0).width;
+        draw_text(&text, transform.screen_dims.x / 2.0 - w / 2.0, 26.0, 18.0, WHITE);
     }
 
     anim_done
-}
-
-pub fn display_ex_label(ex: ExPointer, transform: &Transform) {
-    let text = ex.to_string();
-    let w = measure_text(&text, None, 18, 1.0).width;
-    draw_text(&text, transform.screen_dims.x / 2.0 - w / 2.0, 26.0, 18.0, WHITE);
 }
 
 pub fn display_background(transform: &Transform) {
@@ -69,10 +65,14 @@ pub fn display_background(transform: &Transform) {
     draw_line(0.0, y, transform.screen_dims[0], y, 2.0, LIGHTGRAY);
 }
 
+fn lerp_colours(start: Color, end: Color, frac: f32) -> Color {
+    Color::from_vec(end.to_vec() * frac + (1.0 - frac) * start.to_vec())
+}
+
 pub fn visualise_individual(time: f32, ex: ExPointer, transform: &mut Transform) -> bool {
     match ex {
         ExPointer::Mat(ex) => match ex {
-            MatEx::MatMul(ex, ex1) => { // Currently flips to a different background then back again. consider changing so there is no background flip.
+            MatEx::MatMul(ex, ex1) => {
                 if time <= 3.0 {
                     let frac = smooth_step(time / 3.0);
                     let mat1 = resolve(ex);
@@ -553,9 +553,201 @@ pub fn visualise_individual(time: f32, ex: ExPointer, transform: &mut Transform)
                 }
                 false
             },
-            FloatEx::Dot(ex, ex1) => true,
-            FloatEx::Cross(ex, ex1) => true,
-            FloatEx::Det(ex) => true,
+            FloatEx::Dot(ex, ex1) => {
+                if time <= 2.0 {
+                    let frac = smooth_step(time / 2.0);
+                    let v1 = resolve(ex);
+                    let v2 = resolve(ex1);
+
+                    display_mat_background_with_col(Mat2::new(v2.x, v2.x, v2.y, v2.y), transform, lerp_colours(BLANK, LIGHTGRAY, frac), BLANK);
+                    
+                    display_vec(v1, transform, "");
+                    display_vec(v2, transform, "");
+
+                    let mat = Mat2::new(v2.x, v2.perp().x, v2.y, v2.perp().y);
+                    display_vec_offset(frac * mat * vec2(0.0, -(mat.inv() * v1).y), v1, transform, "");
+                } else if time <= 3.0 {
+                    let frac = smooth_step(time - 2.0);
+                    let v1 = resolve(ex);
+                    let v2 = resolve(ex1);
+
+                    display_mat_background_with_col(Mat2::new(v2.x, v2.x, v2.y, v2.y), transform, LIGHTGRAY, BLANK);
+
+                    display_vec((1.0 - frac) * v1, transform, "");
+                    display_vec(v2, transform, "");
+
+                    let mat = Mat2::new(v2.x, v2.perp().x, v2.y, v2.perp().y);
+                    let vec = mat * vec2(0.0, -(mat.inv() * v1).y);
+                    display_vec_offset((1.0 - frac) * vec, v1 + frac * vec, transform, "");
+                    display_point(vec + v1, transform, &(vec + v1).length().to_string(), RED, frac * 5.0);
+                } else if time <= 5.0 {
+                    let frac = smoother_step((time - 3.0) / 2.0);
+                    let v1 = resolve(ex);
+                    let v2 = resolve(ex1);
+
+                    let angle = if v2.y >= 0.0 {
+                        frac * -f32::atan2(v2.y, v2.x)
+                    } else {
+                        frac * f32::atan2(-v2.y, v2.x)
+                    };
+
+                    let rotmat = Mat2::rotation(angle);
+
+                    display_mat_background_with_col(rotmat * Mat2::new(v2.x, v2.x, v2.y, v2.y), transform, LIGHTGRAY, BLANK);
+
+                    display_vec(rotmat * v2, transform, "");
+
+                    let mat = Mat2::new(v2.x, v2.perp().x, v2.y, v2.perp().y);
+                    let vec = mat * vec2(0.0, -(mat.inv() * v1).y);
+                    display_point(rotmat * (vec + v1), transform, &(vec + v1).length().to_string(), RED, 5.0);
+                } else if time <= 8.0 {
+                    let frac = smoother_step((time - 5.0) / 3.0);
+                    let v1 = resolve(ex);
+                    let v2 = resolve(ex1);
+
+                    let scale = frac * v2.length() + 1.0 - frac;
+
+                    display_mat_background(I * scale, transform);
+                    display_vec(vec2(v2.length(), 0.0), transform, "");
+                    display_float(v2.dot(v1) / v2.length() * scale, transform);
+                } else {
+                    return true
+                }
+                false
+            },
+            FloatEx::Cross(ex, ex1) => {
+                const YELLOW: Color = Color { r: 0.7, g: 0.7, b: 0.0, a: 0.7 };
+                if time <= 1.0 {
+                    let frac = smooth_step(time);
+                    let v1 = resolve(ex);
+                    let v2 = resolve(ex1);
+
+                    let screen_v1 = transform.world_to_screen(frac * v1);
+                    let screen_v2 = transform.world_to_screen(v2);
+                    let screen_o = transform.world_to_screen(vec2(0.0, 0.0));
+
+                    draw_triangle(screen_v1, screen_v2, screen_o, YELLOW);
+
+                    display_vec(v1, transform, "");
+                    display_vec(v2, transform, "");
+
+                    display_mat_background_with_col(
+                        Mat2::new(v1.x, v2.x, v1.y, v2.y),
+                        transform,
+                        lerp_colours(BLANK, LIGHTGRAY, frac),
+                        lerp_colours(BLANK, GRAY, frac)
+                    );
+                } else if time <= 2.0 {
+                    let frac = smooth_step(time - 1.0);
+                    let v1 = resolve(ex);
+                    let v2 = resolve(ex1);
+
+                    let screen_v1 = transform.world_to_screen(v1);
+                    let screen_v2 = transform.world_to_screen(v2);
+                    let screen_v3 = transform.world_to_screen(v2 + frac * v1);
+                    let screen_o = transform.world_to_screen(vec2(0.0, 0.0));
+
+                    draw_triangle(screen_v1, screen_v2, screen_o, YELLOW);
+                    draw_triangle(screen_v1, screen_v2, screen_v3, YELLOW);
+
+                    display_vec(v1, transform, "");
+                    display_vec(v2, transform, "");
+
+                    transform.point_of_interest(v2 + frac * v1);
+
+                    display_mat_background_with_col(
+                        Mat2::new(v1.x, v2.x, v1.y, v2.y),
+                        transform,
+                        LIGHTGRAY,
+                        GRAY
+                    );
+                } else if time <= 4.0 {
+                    let frac = if time <= 3.0 { smooth_step(time - 2.0) } else { 1.0 };
+                    let v1 = resolve(ex);
+                    let v2 = resolve(ex1);
+
+                    let screen_v1 = transform.world_to_screen(v1);
+                    let screen_v2 = transform.world_to_screen(v2);
+                    let screen_v3 = transform.world_to_screen(v2 + v1);
+                    let screen_o = transform.world_to_screen(vec2(0.0, 0.0));
+
+                    draw_triangle(screen_v1, screen_v2, screen_o, YELLOW);
+                    draw_triangle(screen_v1, screen_v2, screen_v3, YELLOW);
+
+                    display_vec(v1, transform, "");
+                    display_vec(v2, transform, "");
+
+                    transform.point_of_interest(v2 + v1);
+
+                    display_mat_background_with_col(
+                        Mat2::new(v1.x, v2.x, v1.y, v2.y),
+                        transform,
+                        LIGHTGRAY,
+                        GRAY
+                    );
+
+                    let mid_point = (screen_v3 + screen_o) / 2.0;
+                    let text = format!("A = {}", v1.x * v2.y - v1.y * v2.x);
+                    let dims = measure_text(&text, None, 26, 1.0);
+                    draw_text(&text, mid_point.x - dims.width / 2.0, mid_point.y - dims.height / 2.0, 26.0, lerp_colours(Color { r: 1.0, g: 1.0, b: 1.0, a: 0.0 }, WHITE, frac));
+                } else {
+                    return true
+                }
+                false
+            },
+            FloatEx::Det(ex) => {
+                const YELLOW: Color = Color { r: 0.7, g: 0.7, b: 0.0, a: 0.7 };
+                if time <= 1.0 {
+                    let frac = smooth_step(time);
+                    let mat = resolve(ex);
+
+                    let screen_v1 = transform.world_to_screen(frac * mat.i());
+                    let screen_v2 = transform.world_to_screen(mat.j());
+                    let screen_o = transform.world_to_screen(vec2(0.0, 0.0));
+
+                    draw_triangle(screen_v1, screen_v2, screen_o, YELLOW);
+
+                    display_mat_all(mat, transform, "i", "j");
+                } else if time <= 2.0 {
+                    let frac = smooth_step(time - 1.0);
+                    let mat = resolve(ex);
+
+                    let screen_v1 = transform.world_to_screen(mat.i());
+                    let screen_v2 = transform.world_to_screen(mat.j());
+                    let screen_v3 = transform.world_to_screen(mat.j() + frac * mat.i());
+                    let screen_o = transform.world_to_screen(vec2(0.0, 0.0));
+
+                    draw_triangle(screen_v1, screen_v2, screen_o, YELLOW);
+                    draw_triangle(screen_v1, screen_v2, screen_v3, YELLOW);
+
+                    transform.point_of_interest(mat.j() + frac * mat.i());
+
+                    display_mat_all(mat, transform, "i", "j");
+                } else if time <= 4.0 {
+                    let frac = if time <= 3.0 { smooth_step(time - 2.0) } else { 1.0 };
+                    let mat = resolve(ex);
+
+                    let screen_v1 = transform.world_to_screen(mat.i());
+                    let screen_v2 = transform.world_to_screen(mat.j());
+                    let screen_v3 = transform.world_to_screen(mat.j() + mat.i());
+                    let screen_o = transform.world_to_screen(vec2(0.0, 0.0));
+
+                    draw_triangle(screen_v1, screen_v2, screen_o, YELLOW);
+                    draw_triangle(screen_v1, screen_v2, screen_v3, YELLOW);
+
+                    transform.point_of_interest(mat.j() + mat.i());
+
+                    display_mat_all(mat, transform, "i", "j");
+
+                    let mid_point = (screen_v3 + screen_o) / 2.0;
+                    let text = format!("A = {}", mat.det());
+                    let dims = measure_text(&text, None, 26, 1.0);
+                    draw_text(&text, mid_point.x - dims.width / 2.0, mid_point.y - dims.height / 2.0, 26.0, lerp_colours(Color { r: 1.0, g: 1.0, b: 1.0, a: 0.0 }, WHITE, frac));
+                } else {
+                    return true
+                }
+                false
+            },
             FloatEx::Literal(_) => true,
         },
         ExPointer::Vec(ex) => match ex {
@@ -687,10 +879,6 @@ pub fn visualise_individual(time: f32, ex: ExPointer, transform: &mut Transform)
                 false
             },
             VecEx::Left(ex) => {
-                fn lerp_colours(start: Color, end: Color, frac: f32) -> Color {
-                    Color::from_vec(end.to_vec() * frac + (1.0 - frac) * start.to_vec())
-                }
-
                 if time <= 1.5 {
                     let frac = smooth_step(time / 1.5);
                     let mat = resolve(ex);
@@ -724,8 +912,40 @@ pub fn visualise_individual(time: f32, ex: ExPointer, transform: &mut Transform)
             },
             VecEx::Top(ex) => true,
             VecEx::Bottom(ex) => true,
-            VecEx::New(ex, ex1) => true,
-            VecEx::Literal(vec2) => true,
+            VecEx::New(ex, ex1) => {
+                let x = resolve(ex);
+                let y = resolve(ex1);
+
+                if time <= 1.5 {
+                    let frac = smooth_step(time / 1.5);
+                    display_arc(vec2(0.0, 0.0), y, 0.0, frac * PI / 2.0, RED, true, transform);
+                    display_point(Vec2::from_angle(frac * PI / 2.0) * y, transform, &y.to_string(), RED, 5.0);
+                    display_float(x, transform);
+                } else if time <= 3.5 {
+                    let frac = smooth_step((time - 1.5) / 2.0);
+                    display_float(x, transform);
+                    display_point(vec2(0.0, y), transform, &y.to_string(), RED, 5.0);
+                    display_arc(vec2(0.0, 0.0), y, frac * PI / 2.0, (1.0 - frac) * PI / 2.0, RED, true, transform);
+                    display_vec_offset(vec2(frac * x, 0.0), vec2(0.0, y), transform, "");
+                    display_vec_offset(vec2(0.0, frac * y), vec2(x, 0.0), transform, "");
+                } else if time <= 5.5 {
+                    let frac = smooth_step((time - 3.5) / 2.0);
+                    display_point(vec2(x, 0.0), transform, "", RED, 5.0 * (1.0 - frac));
+                    display_point(vec2(0.0, y), transform, "", RED, 5.0 * (1.0 - frac));
+                    display_vec_offset(vec2(x, 0.0), vec2(0.0, y), transform, "");
+                    display_vec_offset(vec2(0.0, y), vec2(x, 0.0), transform, "");
+                    display_vec_with_col(vec2(x, y) * frac, transform, "", DARKBLUE);
+                } else if time <= 7.0 {
+                    let frac = smooth_step((time - 5.5) / 1.5);
+                    display_vec_offset(vec2(x, 0.0) * (1.0 - frac), vec2(0.0, y), transform, "");
+                    display_vec_offset(vec2(0.0, y) * (1.0 - frac), vec2(x, 0.0), transform, "");
+                    display_vec(vec2(x, y), transform, "");
+                } else {
+                    return true;
+                }
+                false
+            },
+            VecEx::Literal(_) => true,
         },
     }
 }
