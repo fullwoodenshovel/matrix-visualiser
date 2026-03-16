@@ -178,6 +178,8 @@ pub enum Token {
     DotB,
     DotC,
     DotD,
+    DotI,
+    DotJ,
     Left,
     Right,
     Top,
@@ -304,6 +306,8 @@ pub fn tokenise(inp: &str) -> Result<Vec<Token>, String> {
                 ".b" => result.push(Token::DotB),
                 ".c" => result.push(Token::DotC),
                 ".d" => result.push(Token::DotD),
+                ".i" => result.push(Token::DotI),
+                ".j" => result.push(Token::DotJ),
                 "Left" => result.push(Token::Left),
                 "Right" => result.push(Token::Right),
                 "Top" => result.push(Token::Top),
@@ -395,8 +399,8 @@ impl<T: Debug> Buffer<T> {
         Some(&self.data[0])
     }
 
-    pub fn next(&mut self) -> T {
-        self.data.pop_front().expect("Next should only be called in a buffer if there is an item.")
+    pub fn next(&mut self) -> Option<T> {
+        self.data.pop_front()
     }
 }
 
@@ -440,7 +444,9 @@ fn binding_power(token: &Token) -> Option<(u8, u8)> {
 
 /// This supports functions with at least one argument
 fn parse_func<const N: usize, T: ExTrait>(vars: &HashMap<String, Obj>, lexer: &mut Buffer<Token>) -> Result<[T; N], String> {
-    let token = lexer.next();
+    let Some(token) = lexer.next() else {
+        return Err("Unexpected end of expression.".to_string());
+    };
 
     if Token::LBrace != token {
         return Err("You must have an open bracket before function use.".to_string())
@@ -451,7 +457,9 @@ fn parse_func<const N: usize, T: ExTrait>(vars: &HashMap<String, Obj>, lexer: &m
     for n in result[..N-1].iter_mut() {
         *n = Some(T::concrete_err(pratt_parse(vars, lexer, 0)?)?);
 
-        let token = lexer.next();
+        let Some(token) = lexer.next() else {
+            return Err("Unexpected end of expression.".to_string());
+        };
 
         if Token::Comma != token {
             return Err("You must have a comma after each argument in a function.".to_string())
@@ -460,11 +468,9 @@ fn parse_func<const N: usize, T: ExTrait>(vars: &HashMap<String, Obj>, lexer: &m
     
     result[N - 1] = Some(T::concrete_err(pratt_parse(vars, lexer, 0)?)?);
 
-    if lexer.peek().is_none() {
+    let Some(token) = lexer.next() else {
         return Err("No close bracket after function call".to_string())
-    }
-
-    let token = lexer.next();
+    };
 
     if Token::RBrace != token {
         return Err("You must have a comma after each argument in a function.".to_string())
@@ -478,10 +484,10 @@ fn parse_func_boxed<const N: usize, T: ExTrait>(vars: &HashMap<String, Obj>, lex
 }
 
 fn pratt_parse(vars: &HashMap<String, Obj>, lexer: &mut Buffer<Token>, min_bp: u8) -> Result<Ex, String> {
-    if lexer.peek().is_none() {
+    let Some(token) = lexer.next() else {
         return Err("Expected value.".to_string());
-    }
-    let mut lhs = match lexer.next() { // todo!() Test "3 +"
+    };
+    let mut lhs = match token {
         Token::Float(float) => Ex::Float(FloatEx::Literal(float)),
         Token::VarName(name) => match vars.get(&name) {
             None => return Err(format!("Variable `{name}` does not exist.")),
@@ -520,7 +526,9 @@ fn pratt_parse(vars: &HashMap<String, Obj>, lexer: &mut Buffer<Token>, min_bp: u
         Token::LBrace => {
             let result = pratt_parse(vars, lexer, 0)?;
 
-            let token = lexer.next();
+            let Some(token) = lexer.next() else {
+                return Err("Expression ended without closing function".to_string())
+            };
 
             if Token::RBrace != token {
                 return Err("You are missing a close bracket".to_string())
@@ -559,26 +567,27 @@ fn pratt_parse(vars: &HashMap<String, Obj>, lexer: &mut Buffer<Token>, min_bp: u
     };
 
     loop {
-        let Some(op) = lexer.peek() else {break;};
-
+        let Some(op) = lexer.peek() else { break; };
+        
         if end_of_ex(op) {
             break;
         }
-
+        
         let Some((l_bp, r_bp)) = binding_power(op) else {
-            let op = lexer.next();
             match lhs {
                 Ex::Mat(ex) => match op {
                     Token::DotA | Token::DotX => lhs = Ex::Float(FloatEx::A(Box::new(ex))),
                     Token::DotB | Token::DotY => lhs = Ex::Float(FloatEx::B(Box::new(ex))),
                     Token::DotC | Token::DotW => lhs = Ex::Float(FloatEx::C(Box::new(ex))),
                     Token::DotD | Token::DotZ => lhs = Ex::Float(FloatEx::D(Box::new(ex))),
-                    _ => return Err(format!("Expected operation, DotA - DotD or DotX - DotZ, got token `{op:?}`."))
+                    Token::DotI => lhs = Ex::Vec(VecEx::Left(Box::new(ex))),
+                    Token::DotJ => lhs = Ex::Vec(VecEx::Right(Box::new(ex))),
+                    _ => return Err(format!("Expected operation, DotA - DotD, DotX, DotZ, DotI or DotJ, got token `{op:?}`."))
                 },
                 Ex::Vec(ex) => match op {
                     Token::DotA | Token::DotX => lhs = Ex::Float(FloatEx::X(Box::new(ex))),
                     Token::DotB | Token::DotY => lhs = Ex::Float(FloatEx::Y(Box::new(ex))),
-                    _ => return Err(format!("Expected operation, DotA - DotB or DotX - DotY, got token `{op:?}`."))
+                    _ => return Err(format!("Expected operation, DotA, DotB, DotX or DotY, got token `{op:?}`."))
                 },
                 Ex::Float(_ex) => return Err(format!("Expected operation, got token `{op:?}`.")),
             }
@@ -589,7 +598,7 @@ fn pratt_parse(vars: &HashMap<String, Obj>, lexer: &mut Buffer<Token>, min_bp: u
             break;
         }
 
-        let op = lexer.next();
+        let op = lexer.next().expect("Value here just checked by checking lexer.peek is Some");
 
         let rhs = pratt_parse(vars, lexer, r_bp)?;
         let lhs_type = lhs.get_type();
