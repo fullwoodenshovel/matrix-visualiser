@@ -9,15 +9,8 @@ mod transform;
 use transform::{Transform, get_screen_dims};
 use macroquad::prelude::*;
 
-// todo!() Add the rest of the visualisations.
-// todo!() Up arrow and down arrow to speed up and slow down.
 // todo!() Display the equation used and highlight the specific part of the equation being displayed, and return the result from it.
 // todo!() Make tree clickable to decide what is not required to visualise.
-// todo!() Add an independent feature that allows for alternative predefined visualisations, accessed using "Show" e.g.:
-//  - alternate visualisations of -M having 180 degree rotation and multiplying the vectors by -1
-//  - visual proof that A(BC) = (AB)C
-//  - visual proof that A + B = B + A
-
 
 fn conf() -> Conf {
     Conf {
@@ -76,14 +69,17 @@ async fn graphics(ex: Ex) {
                 break 'tree order
             }
         };
-
+        
         next_frame().await;
-
+        
+        const SPEEDS: [f32; 9] = [0.1, 0.2, 0.5, 0.8, 1.0, 1.2, 1.5, 2.0, 2.5];
+        let mut speed_index = 4;
+        let mut speed = SPEEDS[speed_index];
+        let mut display_speed = 0.0;
         let mut index = 0;
-        let mut time = get_frame_time() * SPEED;
+        let mut time = get_frame_time() * speed;
         let mut anim_done = false;
         let mut transform = Transform::new(Vec2::new(0.0, 0.0), 0.01);
-        const SPEED: f32 = 1.0;
 
         'visualise: loop {
             clear_background(BLACK);
@@ -116,7 +112,7 @@ async fn graphics(ex: Ex) {
             if time > 0.0 {
                 if !anim_done {
                     anim_done = visualise(order[index], time, &ex, &mut transform);
-                    time += get_frame_time() * SPEED;
+                    time += get_frame_time() * speed;
                 }
                 if anim_done {
                     index += 1;
@@ -131,6 +127,12 @@ async fn graphics(ex: Ex) {
                 let text = obj.to_string();
                 let w = measure_text(&text, None, 18, 1.0).width;
                 draw_text(&text, transform.screen_dims.x / 2.0 - w / 2.0, 26.0, 18.0, WHITE);
+            }
+            
+            if display_speed + 1.5 > get_time() {
+                let text = format!("{speed}x");
+                let w = measure_text(&text, None, 18, 1.0).width;
+                draw_text(&text, transform.screen_dims.x / 2.0 - w / 2.0, 58.0, 18.0, WHITE);
             }
 
             if is_key_pressed(KeyCode::Left) && index == 0 {
@@ -159,9 +161,19 @@ async fn graphics(ex: Ex) {
                     index += 1;
                     time = 0.0;
                 } else {
-                    time += get_frame_time() * SPEED;
+                    time += get_frame_time() * speed;
                     anim_done = false;
                 }
+            } else if let up = is_key_pressed(KeyCode::Up) && (up || is_key_pressed(KeyCode::Down)) {
+                if up {
+                    if speed_index != 8 {
+                        speed_index += 1
+                    }
+                } else {
+                    speed_index = speed_index.saturating_sub(1)
+                };
+                speed = SPEEDS[speed_index];
+                display_speed = get_time();
             }
 
             next_frame().await;

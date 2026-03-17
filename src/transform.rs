@@ -91,9 +91,15 @@ impl Transform {
         self.modify_from_rect(conservative);
 
         self.target_rect = Rect::new(0.0, 0.0, 0.0, 0.0);
-    }
 
+    }
+    
     pub fn point_of_interest(&mut self, vec: Vec2) {
+        #[cfg(feature = "debug_points")]
+        {
+            let screen = self.world_to_screen(vec);
+            draw_circle_lines(screen.x, screen.y, 4.0, 1.0, WHITE);
+        }
         if vec.x < self.target_rect.x {
             self.target_rect.w += self.target_rect.x - vec.x;
             self.target_rect.x = vec.x;

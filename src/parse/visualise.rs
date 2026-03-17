@@ -237,10 +237,10 @@ pub fn visualise_individual(time: f32, ex: ExPointer, transform: &mut Transform)
                     display_vec_offset(vec2(0.0, frac * jy), vec2(jx, 0.0), transform, "j");
                 } else if time <= 5.5 {
                     let frac = smooth_step((time - 3.5) / 2.0);
-                    display_point(vec2(ix, 0.0), transform, "", RED, 5.0 * (1.0 - frac));
-                    display_point(vec2(jx, 0.0), transform, "", RED, 5.0 * (1.0 - frac));
-                    display_point(vec2(0.0, iy), transform, "", RED, 5.0 * (1.0 - frac));
-                    display_point(vec2(0.0, jy), transform, "", RED, 5.0 * (1.0 - frac));
+                    display_point(vec2(ix, 0.0), transform, &ix.to_string(), RED, 5.0 * (1.0 - frac));
+                    display_point(vec2(jx, 0.0), transform, &jx.to_string(), RED, 5.0 * (1.0 - frac));
+                    display_point(vec2(0.0, iy), transform, &iy.to_string(), RED, 5.0 * (1.0 - frac));
+                    display_point(vec2(0.0, jy), transform, &jy.to_string(), RED, 5.0 * (1.0 - frac));
                     display_vec_offset(vec2(ix, 0.0), vec2(0.0, iy), transform, "i");
                     display_vec_offset(vec2(0.0, iy), vec2(ix, 0.0), transform, "i");
                     display_vec_offset(vec2(jx, 0.0), vec2(0.0, jy), transform, "j");
@@ -283,7 +283,75 @@ pub fn visualise_individual(time: f32, ex: ExPointer, transform: &mut Transform)
                 }
                 false
             },
-            MatEx::Hor(ex, ex1) => true,
+            MatEx::Hor(ex, ex1) => {
+                if time <= 2.0 {
+                    let frac = smooth_step(time / 2.0);
+                    let v1 = resolve(ex);
+                    let v2 = resolve(ex1);
+                    display_vec(v1, transform, "");
+                    display_vec(v2, transform, "");
+                    display_vec_offset(vec2(frac * -v1.x, 0.0), v1, transform, "");
+                    display_vec_offset(vec2(0.0, frac * -v1.y), v1, transform, "");
+                    display_vec_offset(vec2(frac * -v2.x, 0.0), v2, transform, "");
+                    display_vec_offset(vec2(0.0, frac * -v2.y), v2, transform, "");
+                } else if time <= 4.0 {
+                    let frac = smooth_step((time - 2.0) / 2.0);
+                    let v1 = resolve(ex);
+                    let v2 = resolve(ex1);
+                    display_vec((1.0 - frac) * v1, transform, "");
+                    display_vec((1.0 - frac) * v2, transform, "");
+                    display_vec_offset(vec2((1.0 - frac) * -v1.x, 0.0), vec2((1.0 - frac) * v1.x, v1.y), transform, "");
+                    display_vec_offset(vec2(0.0, (1.0 - frac) * -v2.y), vec2(v2.x, (1.0 - frac) * v2.y), transform, "");
+                    display_arc(vec2(0.0, 0.0), v1.y, PI / 2.0, -frac * PI / 2.0, RED, true, transform);
+                    display_arc(vec2(0.0, 0.0), v2.x, 0.0, frac * PI / 2.0, RED, true, transform);
+                    display_vec_offset(vec2((1.0 - frac) * -v2.x, 0.0), vec2((1.0 - frac) * v2.x, v2.y), transform, "");
+                    display_vec_offset(vec2(0.0, (1.0 - frac) * -v1.y), vec2(v1.x, (1.0 - frac) * v1.y), transform, "");
+                    display_point(Vec2::from_angle((1.0 - frac) * PI / 2.0) * v1.y, transform, "", GOLD, frac * 5.0);
+                    display_point(Vec2::from_angle(frac * PI / 2.0) * v2.x, transform, "", GOLD, frac * 5.0);
+                    display_point(vec2(0.0, v2.y), transform, "", GOLD, frac * 5.0);
+                    display_point(vec2(v1.x, 0.0), transform, "", GOLD, frac * 5.0);
+                } else if time <= 5.5 {
+                    let frac = smooth_step((time - 4.0) / 1.5);
+                    let v1 = resolve(ex);
+                    let v2 = resolve(ex1);
+                    display_arc(vec2(0.0, 0.0), v1.y, (1.0 - frac) * PI / 2.0, -(1.0 - frac) * PI / 2.0, RED, true, transform);
+                    display_arc(vec2(0.0, 0.0), v2.x, frac * PI / 2.0, (1.0 - frac) * PI / 2.0, RED, true, transform);
+
+                    display_point(vec2(v1.y, 0.0), transform, "", GOLD, (1.0 - frac) * 5.0);
+                    display_point(vec2(0.0, v2.x), transform, "", GOLD, (1.0 - frac) * 5.0);
+                    display_point(vec2(0.0, v2.y), transform, "", GOLD, (1.0 - frac) * 5.0);
+                    display_point(vec2(v1.x, 0.0), transform, "", GOLD, (1.0 - frac) * 5.0);
+
+                    let Vec2 { x: ix, y: jx} = v1;
+                    let Vec2 { x: iy, y: jy} = v2;
+                    display_vec_offset(vec2(frac * ix, 0.0), vec2(0.0, iy), transform, "i");
+                    display_vec_offset(vec2(0.0, frac * iy), vec2(ix, 0.0), transform, "i");
+                    display_vec_offset(vec2(frac * jx, 0.0), vec2(0.0, jy), transform, "j");
+                    display_vec_offset(vec2(0.0, frac * jy), vec2(jx, 0.0), transform, "j");
+                } else if time <= 7.5 {
+                    let frac = smooth_step((time - 5.5) / 2.0);
+                    let Vec2 { x: ix, y: jx} = resolve(ex);
+                    let Vec2 { x: iy, y: jy} = resolve(ex1);
+                    display_vec_offset(vec2(ix, 0.0), vec2(0.0, iy), transform, "i");
+                    display_vec_offset(vec2(0.0, iy), vec2(ix, 0.0), transform, "i");
+                    display_vec_offset(vec2(jx, 0.0), vec2(0.0, jy), transform, "j");
+                    display_vec_offset(vec2(0.0, jy), vec2(jx, 0.0), transform, "j");
+                    display_vec_with_col(vec2(ix, iy) * frac, transform, "i", GOLD);
+                    display_vec_with_col(vec2(jx, jy) * frac, transform, "j", GOLD);
+                } else if time <= 9.0 {
+                    let frac = smooth_step((time - 7.5) / 1.5);
+                    let Vec2 { x: ix, y: jx} = resolve(ex);
+                    let Vec2 { x: iy, y: jy} = resolve(ex1);
+                    display_vec_offset(vec2(ix, 0.0) * (1.0 - frac), vec2(0.0, iy), transform, "i");
+                    display_vec_offset(vec2(0.0, iy) * (1.0 - frac), vec2(ix, 0.0), transform, "i");
+                    display_vec_offset(vec2(jx, 0.0) * (1.0 - frac), vec2(0.0, jy), transform, "j");
+                    display_vec_offset(vec2(0.0, jy) * (1.0 - frac), vec2(jx, 0.0), transform, "j");
+                    display_mat_all(Mat2::new(ix, jx, iy, jy), transform, "i", "j");
+                } else {
+                    return true;
+                }
+                false
+            },
             MatEx::Inv(ex) => {
                 if time <= 3.0 {
                     let frac = smooth_step(time / 3.0);
@@ -474,7 +542,7 @@ pub fn visualise_individual(time: f32, ex: ExPointer, transform: &mut Transform)
                 }
                 false
             },
-            FloatEx::Pow(ex, ex1) => true,
+            FloatEx::Pow(_, _) => true, // todo!() idk how to visualise x^y
             FloatEx::Add(ex, ex1) => {
                 if time <= 1.0 {
                     let frac = smooth_step(time);
@@ -910,8 +978,124 @@ pub fn visualise_individual(time: f32, ex: ExPointer, transform: &mut Transform)
                 }
                 false
             },
-            VecEx::Top(ex) => true,
-            VecEx::Bottom(ex) => true,
+            VecEx::Top(ex) => {
+                if time <= 2.0 {
+                    let frac = smooth_step(time / 2.0);
+                    let mat = resolve(ex);
+                    display_mat_foreground(mat, transform, "i", "j");
+                    let v1 = mat.i();
+                    let v2 = mat.j();
+                    display_vec_offset(vec2(0.0, frac * -v1.y), v1, transform, "");
+                    display_vec_offset(vec2(0.0, frac * -v2.y), v2, transform, "");
+                } else if time <= 4.0 {
+                    let frac = smooth_step((time - 2.0) / 2.0);
+                    let mat = resolve(ex);
+                    display_mat_foreground((1.0 - frac) * mat, transform, "i", "j");
+                    let v1 = mat.i();
+                    let v2 = mat.j();
+                    display_arc(vec2(0.0, 0.0), v2.x, 0.0, frac * PI / 2.0, RED, true, transform);
+                    display_vec_offset(vec2(0.0, (1.0 - frac) * -v1.y), vec2(v1.x, (1.0 - frac) * v1.y), transform, "");
+                    display_vec_offset(vec2(0.0, (1.0 - frac) * -v2.y), vec2(v2.x, (1.0 - frac) * v2.y), transform, "");
+                    display_point(Vec2::from_angle(frac * PI / 2.0) * v2.x, transform, "", GOLD, frac * 5.0);
+                    display_point(vec2(v1.x, 0.0), transform, "", GOLD, frac * 5.0);
+                } else if time <= 5.5 {
+                    let frac = smooth_step((time - 4.0) / 1.5);
+                    let mat = resolve(ex);
+                    let v1 = mat.i();
+                    let v2 = mat.j();
+                    display_arc(vec2(0.0, 0.0), v2.x, frac * PI / 2.0, (1.0 - frac) * PI / 2.0, RED, true, transform);
+
+                    display_point(vec2(0.0, v2.x), transform, "", GOLD, (1.0 - frac) * 5.0);
+                    display_point(vec2(v1.x, 0.0), transform, "", GOLD, (1.0 - frac) * 5.0);
+
+                    let Vec2 { x: ix, y: _jx} = v1;
+                    let Vec2 { x: iy, y: _jy} = v2;
+                    display_vec_offset(vec2(frac * ix, 0.0), vec2(0.0, iy), transform, "");
+                    display_vec_offset(vec2(0.0, frac * iy), vec2(ix, 0.0), transform, "");
+                } else if time <= 7.5 {
+                    let frac = smooth_step((time - 5.5) / 2.0);
+                    let mat = resolve(ex);
+                    let v1 = mat.i();
+                    let v2 = mat.j();
+                    let Vec2 { x: ix, y: _jx} = v1;
+                    let Vec2 { x: iy, y: _jy} = v2;
+                    display_vec_offset(vec2(ix, 0.0), vec2(0.0, iy), transform, "");
+                    display_vec_offset(vec2(0.0, iy), vec2(ix, 0.0), transform, "");
+                    display_vec(vec2(ix, iy) * frac, transform, "");
+                } else if time <= 9.0 {
+                    let frac = smooth_step((time - 7.5) / 1.5);
+                    let mat = resolve(ex);
+                    let v1 = mat.i();
+                    let v2 = mat.j();
+                    let Vec2 { x: ix, y: _jx} = v1;
+                    let Vec2 { x: iy, y: _jy} = v2;
+                    display_vec_offset(vec2(ix, 0.0) * (1.0 - frac), vec2(0.0, iy), transform, "");
+                    display_vec_offset(vec2(0.0, iy) * (1.0 - frac), vec2(ix, 0.0), transform, "");
+                    display_vec(vec2(ix, iy), transform, "");
+                } else {
+                    return true;
+                }
+                false
+            },
+            VecEx::Bottom(ex) => {
+                if time <= 2.0 {
+                    let frac = smooth_step(time / 2.0);
+                    let mat = resolve(ex);
+                    display_mat_foreground(mat, transform, "i", "j");
+                    let v1 = mat.i();
+                    let v2 = mat.j();
+                    display_vec_offset(vec2(frac * -v1.x, 0.0), v1, transform, "");
+                    display_vec_offset(vec2(frac * -v2.x, 0.0), v2, transform, "");
+                } else if time <= 4.0 {
+                    let frac = smooth_step((time - 2.0) / 2.0);
+                    let mat = resolve(ex);
+                    display_mat_foreground((1.0 - frac) * mat, transform, "i", "j");
+                    let v1 = mat.i();
+                    let v2 = mat.j();
+                    display_arc(vec2(0.0, 0.0), v1.y, PI / 2.0, -frac * PI / 2.0, RED, true, transform);
+                    display_vec_offset(vec2((1.0 - frac) * -v1.x, 0.0), vec2((1.0 - frac) * v1.x, v1.y), transform, "");
+                    display_vec_offset(vec2((1.0 - frac) * -v2.x, 0.0), vec2((1.0 - frac) * v2.x, v2.y), transform, "");
+                    display_point(Vec2::from_angle((1.0 - frac) * PI / 2.0) * v1.y, transform, "", GOLD, frac * 5.0);
+                    display_point(vec2(0.0, v2.y), transform, "", GOLD, frac * 5.0);
+                } else if time <= 5.5 {
+                    let frac = smooth_step((time - 4.0) / 1.5);
+                    let mat = resolve(ex);
+                    let v1 = mat.i();
+                    let v2 = mat.j();
+                    display_arc(vec2(0.0, 0.0), v1.y, (1.0 - frac) * PI / 2.0, -(1.0 - frac) * PI / 2.0, RED, true, transform);
+
+                    display_point(vec2(0.0, v2.y), transform, "", GOLD, (1.0 - frac) * 5.0);
+                    display_point(vec2(v1.y, 0.0), transform, "", GOLD, (1.0 - frac) * 5.0);
+
+                    let Vec2 { x: _ix, y: jx} = v1;
+                    let Vec2 { x: _iy, y: jy} = v2;
+                    display_vec_offset(vec2(frac * jx, 0.0), vec2(0.0, jy), transform, "");
+                    display_vec_offset(vec2(0.0, frac * jy), vec2(jx, 0.0), transform, "");
+                } else if time <= 7.5 {
+                    let frac = smooth_step((time - 5.5) / 2.0);
+                    let mat = resolve(ex);
+                    let v1 = mat.i();
+                    let v2 = mat.j();
+                    let Vec2 { x: _ix, y: jx} = v1;
+                    let Vec2 { x: _iy, y: jy} = v2;
+                    display_vec_offset(vec2(jx, 0.0), vec2(0.0, jy), transform, "");
+                    display_vec_offset(vec2(0.0, jy), vec2(jx, 0.0), transform, "");
+                    display_vec(vec2(jx, jy) * frac, transform, "");
+                } else if time <= 9.0 {
+                    let frac = smooth_step((time - 7.5) / 1.5);
+                    let mat = resolve(ex);
+                    let v1 = mat.i();
+                    let v2 = mat.j();
+                    let Vec2 { x: _ix, y: jx} = v1;
+                    let Vec2 { x: _iy, y: jy} = v2;
+                    display_vec_offset(vec2(jx, 0.0) * (1.0 - frac), vec2(0.0, jy), transform, "");
+                    display_vec_offset(vec2(0.0, jy) * (1.0 - frac), vec2(jx, 0.0), transform, "");
+                    display_vec(vec2(jx, jy), transform, "");
+                } else {
+                    return true;
+                }
+                false
+            },
             VecEx::New(ex, ex1) => {
                 let x = resolve(ex);
                 let y = resolve(ex1);
@@ -930,8 +1114,8 @@ pub fn visualise_individual(time: f32, ex: ExPointer, transform: &mut Transform)
                     display_vec_offset(vec2(0.0, frac * y), vec2(x, 0.0), transform, "");
                 } else if time <= 5.5 {
                     let frac = smooth_step((time - 3.5) / 2.0);
-                    display_point(vec2(x, 0.0), transform, "", RED, 5.0 * (1.0 - frac));
-                    display_point(vec2(0.0, y), transform, "", RED, 5.0 * (1.0 - frac));
+                    display_point(vec2(x, 0.0), transform, &x.to_string(), RED, 5.0 * (1.0 - frac));
+                    display_point(vec2(0.0, y), transform, &y.to_string(), RED, 5.0 * (1.0 - frac));
                     display_vec_offset(vec2(x, 0.0), vec2(0.0, y), transform, "");
                     display_vec_offset(vec2(0.0, y), vec2(x, 0.0), transform, "");
                     display_vec_with_col(vec2(x, y) * frac, transform, "", DARKBLUE);
@@ -1039,7 +1223,7 @@ fn display_vec_offset_with_col(vec: Vec2, offset: Vec2, transform: &mut Transfor
         colour
     );
 
-    transform.point_of_interest(vec);
+    transform.point_of_interest(vec + offset);
     transform.point_of_interest(offset);
 }
 
@@ -1074,6 +1258,16 @@ fn display_arc(center: Vec2, radius: f32, start_angle: f32, angle: f32, colour: 
         screen_start_angle = start_angle;
     }
     draw_arc(center.x, center.y, 128, screen_radius, -screen_start_angle / PI * 180.0, 2.0, -screen_angle / PI * 180.0, colour);
+
+    let start = (screen_start_angle / (PI / 2.0)).floor() * PI / 2.0;
+    for i in 0..4 {
+        let angle = start - PI / 2.0 * i as f32;
+        if screen_start_angle > angle && angle > screen_start_angle + screen_angle {
+            transform.point_of_interest(Vec2::from_angle(angle) * radius);
+        } else {
+            break;
+        }
+    }
 
     if head {
         let end = transform.world_to_screen(Vec2::from_angle(start_angle + angle) * radius);
