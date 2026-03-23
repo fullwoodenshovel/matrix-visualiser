@@ -337,18 +337,6 @@ pub fn tokenise(inp: &str) -> Result<Vec<Token>, String> {
                 }
             }
         }
-
-        /// this is for operators that have multiple characters, but still want early as possible parsing.
-        fn append_residual_first(_result: &mut Vec<Token>, _residual: &str) -> bool {
-            false
-            // match residual {
-            //     "**" => result.push(Token::Pow),
-            //     _value => {
-            //         return false
-            //     }
-            // }
-            // true
-        }
         
         for char in inp.chars() {
             let mut added_to_residual = false;
@@ -370,9 +358,7 @@ pub fn tokenise(inp: &str) -> Result<Vec<Token>, String> {
                 }
             }
 
-            if append_residual_first(&mut result, &residual) {
-                residual = String::new();
-            } else if !added_to_residual && !residual.is_empty() {
+            if !added_to_residual && !residual.is_empty() {
                 append_residual(&mut result, &residual);
                 residual = String::new();
             }
@@ -442,7 +428,7 @@ fn binding_power(token: &Token) -> Option<(u8, u8)> {
         Token::Add => (1, 2),
         Token::Neg => (3, 4),
         Token::Mul => (5, 6),
-        Token::Div => (5, 6), // todo!() make sure this is the correct way round. this means "1 / 2 / 3" should work
+        Token::Div => (5, 6),
         Token::Cross => (7, 8),
         Token::Pow => (10, 9),
         _ => return None
