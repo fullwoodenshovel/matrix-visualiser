@@ -74,3 +74,7 @@ Show m*Vert(a,b)
 ```
 Show Mat(2,1,-3,(2*-2)+3)
 ```
+
+```
+Mat(Vec(2,1) * Vec(5 * 2 - 1, 4), -Vec(2,7).y / 2 / 0.3, RotVec(2).x, 6 + 3 - (1 - 2)) * RotVec(5)
+```
