@@ -544,7 +544,7 @@ pub fn visualise_individual(time: f32, ex: ExPointer, transform: &mut Transform)
                     let f2 = resolve(ex1);
                     let frac = smooth_step(time - 2.0);
                     display_float(f1 / f2, transform);
-                    display_point(vec2(1.0, 0.0), transform, &f1.to_string(), RED, (1.0 - frac) * 5.0);
+                    display_point(vec2(1.0, 0.0), transform, "1.0", RED, (1.0 - frac) * 5.0);
                 } else {
                     return true;
                 }
