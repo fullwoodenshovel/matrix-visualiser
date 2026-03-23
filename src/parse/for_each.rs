@@ -34,6 +34,14 @@ impl<'a> ExPointer<'a> {
             } else { false },
         }
     }
+
+    pub fn from_ex(ex: &'a Ex) -> Self {
+        match ex {
+            Ex::Mat(ex) => Self::Mat(ex),
+            Ex::Vec(ex) => Self::Vec(ex),
+            Ex::Float(ex) => Self::Float(ex),
+        }
+    }
 }
 
 impl<'a> Display for ExPointer<'a> {
@@ -102,10 +110,14 @@ impl<'a> Display for ExPointer<'a> {
 
 /// Toggling reverse_children and children_first is equivalent to reversing the order of the returned Vec.
 pub fn for_each(ex: &Ex, children_first: bool, reverse_children: bool) -> VecDeque<(ExPointer<'_>, usize)> {
+    for_each_pointer(ExPointer::from_ex(ex), children_first, reverse_children)
+}
+
+pub fn for_each_pointer<'a>(ex: ExPointer<'a>, children_first: bool, reverse_children: bool) -> VecDeque<(ExPointer<'a>, usize)> {
     let mut result = match ex {
-        Ex::Mat(ex) => for_each_mat(ex, 0, children_first ^ reverse_children),
-        Ex::Vec(ex) => for_each_vec(ex, 0, children_first ^ reverse_children),
-        Ex::Float(ex) => for_each_float(ex, 0, children_first ^ reverse_children),
+        ExPointer::Mat(ex) => for_each_mat(ex, 0, children_first ^ reverse_children),
+        ExPointer::Vec(ex) => for_each_vec(ex, 0, children_first ^ reverse_children),
+        ExPointer::Float(ex) => for_each_float(ex, 0, children_first ^ reverse_children),
     };
     if reverse_children {
         result.make_contiguous().reverse();

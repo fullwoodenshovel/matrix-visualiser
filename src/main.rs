@@ -1,16 +1,19 @@
 mod mat2;
 use input_handler::InputHandler;
+use std::collections::HashSet;
 use std::{collections::HashMap, f32};
 mod parse;
-use parse::{parse_exp, Ex, Line, resolve_ex};
-use parse::for_each::{for_each, resolve_indexed};
+use parse::{FloatEx, MatEx, VecEx, parse_exp, Ex, Line, resolve_ex};
+use parse::for_each::{ExPointer, for_each, resolve_indexed};
 use parse::visualise::{visualise, display_background, visualise_obj};
 mod transform;
 use transform::{Transform, get_screen_dims};
 use macroquad::prelude::*;
 
-// todo!() Display the equation used and highlight the specific part of the equation being displayed, and return the result from it.
-// todo!() Make tree clickable to decide what is not required to visualise.
+// There are many checks that wont change from most frames to the next, but are checked each frame. these can be optimised.
+// For example:
+//  - When drawing the tree, finding children of ignored is done every frame
+//  - When visualising, figuring out what objects to draw in the background is done every frame
 
 fn conf() -> Conf {
     Conf {
@@ -49,20 +52,21 @@ async fn main() {
 
         if show {
             println!("Go to window for visualisation.");
-            graphics(ex).await;
+            graphics(&ex).await;
             display_go_to_term().await;
         }
     }
 }
 
-async fn graphics(ex: Ex) {
+async fn graphics(ex: &Ex) {
+    let mut ignored = HashSet::new();
     'main: loop {
         next_frame().await;
 
         let order = 'tree: loop {
             clear_background(BLACK);
 
-            let order = draw_tree(&ex);
+            let order = draw_tree(ex, &mut ignored);
             
             next_frame().await;
             if is_key_pressed(KeyCode::Right) {
@@ -87,31 +91,48 @@ async fn graphics(ex: Ex) {
             transform.screen_dims = get_screen_dims();
             display_background(&transform);
 
-            let vec = for_each(&ex, false, true);
+            let vec = for_each(ex, false, true);
 
             // This algorithm does the following:
             // walk the tree backwards, until reaching index of target. all these values are special cases and do not need to be displayed.
             // set target_depth to depth of this index, and display.
             // when walking backwards, if target_depth >= depth, display and set target_depth to depth.
-            if index < order.len() { // This doesnt work if order isnt simply [0,1,2,...]
-                let current_ex = for_each(&ex, true, false)[order[index]].0;
+            // This doesnt work if order isnt in ascending order.
+            // This can be optimised as vec is just the normal for_each reversed. this means the indexing can be identified easily. vec variable is unnecessary
+            if index < order.len() {
+                let current_ex = for_each(ex, true, false)[order[index]].0;
                 let new_index = vec.iter().position(|d| d.0.pointer_eq(current_ex)).unwrap();
                 let mut target_depth = if time == 0.0 {
                     vec[new_index].1 + 1
                 } else {
                     vec[new_index].1
                 };
-                for (ex, depth) in vec.range(new_index + 1..order.len()) {
+                for (index, (ex, depth)) in vec.range(new_index + 1..).enumerate() {
+                    let index = index + new_index + 1;
                     if target_depth >= *depth {
-                        visualise_obj(ex.resolve(), &mut transform, true);
                         target_depth = *depth;
+                        let mut parent_shown = true;
+                        for (index, (_, parent_depth)) in vec.range(..index).enumerate().rev() {
+                            if parent_depth < depth {
+                                let index = vec.len() - index - 1;
+                                parent_shown = !ignored.iter().any(|(_, _, target_index)| *target_index == index);
+                                break
+                            }
+                        }
+                        if parent_shown {
+                            visualise_obj(ex.resolve(), &mut transform, true);
+                        }
                     }
                 }
             }
 
             if time > 0.0 {
                 if !anim_done {
-                    anim_done = visualise(order[index], time, &ex, &mut transform);
+                    if ignored.iter().any(|(_, _, ignored_index)| *ignored_index == order[index]) {
+                        anim_done = true;
+                    } else {
+                        anim_done = visualise(order[index], time, ex, &mut transform);
+                    }
                     time += get_frame_time() * speed;
                 }
                 if anim_done {
@@ -121,7 +142,7 @@ async fn graphics(ex: Ex) {
             }
 
             if time == 0.0 {
-                let obj = resolve_indexed(order[index - 1], &ex);
+                let obj = resolve_indexed(order[index - 1], ex);
                 visualise_obj(obj, &mut transform, false);
 
                 let text = obj.to_string();
@@ -194,8 +215,13 @@ fn get_total(ex: &Ex) -> Vec<usize> {
     depths
 }
 
-fn draw_tree(ex: &Ex) -> Vec<usize> {
-    // let mouse = mouse_position();
+fn draw_tree(ex: &Ex, ignored: &mut HashSet<(usize, usize, usize)>) -> Vec<usize> {
+    let mouse = if is_mouse_button_pressed(MouseButton::Left) {
+        let mouse = mouse_position();
+        Some(vec2(mouse.0, mouse.1))
+    } else {
+        None
+    };
     let (width, height) = (screen_width(), screen_height());
     let totals = get_total(ex);
     let spacing = *[
@@ -213,8 +239,10 @@ fn draw_tree(ex: &Ex) -> Vec<usize> {
     let y_offset = spacing / 2.0;
 
     let mut order = Vec::new();
-    
-    for (ex, depth) in for_each(ex, true, false) {
+
+    let vec = for_each(ex, true, false);
+    for (index, (ex, depth)) in vec.iter().enumerate() {
+        let depth = *depth;
         while indicies.len() <= depth {
             indicies.push(0);
         }
@@ -234,7 +262,27 @@ fn draw_tree(ex: &Ex) -> Vec<usize> {
             draw_line(x, y, parent_x, parent_y, (spacing / 100.0).clamp(2.0, f32::INFINITY), LIGHTGRAY);
         };
 
-        draw_poly(x, y, polygon_lines, spacing / 3.0, 0.0, YELLOW);
+        if let Some(mouse) = mouse && mouse.distance_squared(vec2(x, y)) < (spacing / 3.0).powf(2.0) {
+            ignored.insert((depth, i, index));
+            ignored.retain(|(ignored_depth, index, _)| !(depth > *ignored_depth && indicies[*ignored_depth] == *index));
+        }
+
+        let is_ignored = ignored.iter().any(|(ignored_depth, index, _)| depth > *ignored_depth && indicies[*ignored_depth] == *index);
+
+        // This can be optimised by only activating on the tick after left mouse clicked.
+        if is_ignored {
+            ignored.insert((depth, i, index));
+        }
+
+        let colour = if is_ignored {
+            BROWN
+        } else if ignored.contains(&(depth, i, index)) ||
+        matches!(ex, ExPointer::Float(FloatEx::Literal(_)) | ExPointer::Vec(VecEx::Literal(_)) | ExPointer::Mat(MatEx::Literal(_))){
+            ORANGE
+        } else {
+            YELLOW
+        };
+        draw_poly(x, y, polygon_lines, spacing / 3.0, 0.0, colour);
 
         let text = &ex.to_string();
         let mut scale = (spacing / 3.0) as u16;
@@ -251,9 +299,8 @@ fn draw_tree(ex: &Ex) -> Vec<usize> {
 
         draw_text(text, x - text_width / 2.0, y + offset_y / 3.0, scale as f32, BLUE);
 
-        match order.last() {
-            Some(last) => order.push(last + 1),
-            None => order.push(0),
+        if !is_ignored {
+            order.push(index);
         }
     }
 
@@ -266,27 +313,7 @@ async fn display_go_to_term() {
     next_frame().await;
 }
 
-// Show Mat(1,2,-3,3) * Mat(0.5,-1,1,0.5)
-
-/*
-
-a = Mat(1,2,-3,3)
-b = Mat(0.5,-1,1,0.5)
-c = Mat(1.0,0.5,-2,0.5)
-Show c*(a-b) + b
-
-Show Mat(1.0,0.5,-2,0.5)*(Mat(1,2,-3,3)-Mat(0.5,-1,1,0.5))
-
-
-a=Vec(12,5)
-b=Vec(-2,3)
-ap=Vec(-5,-7)
-bp=Vec(6,-2)
-m=Vert(ap, bp) * Inv(Vert(a,b))
-Show m*Vert(a,b)
-
-*/
-
+// Example of vec:
 // [
 //     (
 //         Mat(MatMul(

@@ -199,11 +199,19 @@ pub fn visualise_individual(time: f32, ex: ExPointer, transform: &mut Transform)
                 } else if time <= 3.0 {
                     let frac = smooth_step((time - 1.0) / 2.0);
                     display_vec_offset(Vec2::from_angle(frac * PI / 2.0) * angle, vec2(1.0, 0.0), transform, "");
+
+                    let a = frac * (angle + 1.0);
+                    transform.point_of_interest(vec2(-a, -a));
+                    transform.point_of_interest(vec2(a, a));
                 } else if time <= t3 + 3.0 {
                     let frac = smoother_step((time - 3.0) / t3);
                     display_mat_all(Mat2::rotation(frac * angle), transform, "i", "j");
                     display_vec_offset(Vec2::from_angle(frac * angle + PI / 2.0) * (1.0 - frac) * angle, Vec2::from_angle(frac * angle), transform, "");
                     display_arc(vec2(0.0, 0.0), 1.0, 0.0, frac * angle, DARKBLUE, false, transform);
+
+                    let a = (1.0 - frac) * (angle + 1.0);
+                    transform.point_of_interest(vec2(-a, -a));
+                    transform.point_of_interest(vec2(a, a));
                 } else {
                     return true;
                 }
@@ -936,11 +944,19 @@ pub fn visualise_individual(time: f32, ex: ExPointer, transform: &mut Transform)
                 } else if time <= 3.0 {
                     let frac = smooth_step((time - 1.0) / 2.0);
                     display_vec_offset(Vec2::from_angle(frac * PI / 2.0) * angle, vec2(1.0, 0.0), transform, "");
+
+                    let a = frac * (angle + 1.0);
+                    transform.point_of_interest(vec2(-a, -a));
+                    transform.point_of_interest(vec2(a, a));
                 } else if time <= t3 + 3.0 {
                     let frac = smoother_step((time - 3.0) / t3);
                     display_vec(Vec2::from_angle(frac * angle), transform, "");
                     display_vec_offset(Vec2::from_angle(frac * angle + PI / 2.0) * (1.0 - frac) * angle, Vec2::from_angle(frac * angle), transform, "");
                     display_arc(vec2(0.0, 0.0), 1.0, 0.0, frac * angle, DARKBLUE, false, transform);
+
+                    let a = (1.0 - frac) * (angle + 1.0);
+                    transform.point_of_interest(vec2(-a, -a));
+                    transform.point_of_interest(vec2(a, a));
                 } else {
                     return true;
                 }
@@ -1262,7 +1278,7 @@ fn display_arc(center: Vec2, radius: f32, start_angle: f32, angle: f32, colour: 
     let start = (screen_start_angle / (PI / 2.0)).floor() * PI / 2.0;
     for i in 0..4 {
         let angle = start - PI / 2.0 * i as f32;
-        if screen_start_angle > angle && angle > screen_start_angle + screen_angle {
+        if screen_start_angle >= angle && angle >= screen_start_angle + screen_angle {
             transform.point_of_interest(Vec2::from_angle(angle) * radius);
         } else {
             break;
