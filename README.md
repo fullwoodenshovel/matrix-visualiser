@@ -1,5 +1,5 @@
 # Overview
-This is a project to visualise matrix transformations, such as multiplication, inversing, scaling, addition, determinant, dot product and more.
+This is a project to visualise and evaluate matrix transformations / expressions involving 2x2 matricies, 2D vectors, and floats, such as multiplication, inversing, scaling, addition, determinant, dot product and more.
 
 # Full list of features
 ## Functions
@@ -12,8 +12,8 @@ This is a project to visualise matrix transformations, such as multiplication, i
 * `.a` `.b` `.x` `.y` (defined for vec)
 * `.a` `.b` `.c` `.d` `.w` `.x` `.y.` `.z` (defined for mat)
 * `.i` `.j` (defined for mat, returns i hat and j hat)
-* `Left(mat)` (returns `Vec(a, c)`)
-* `Right(mat)` (returns `Vec(b, d)`)
+* `Left(mat)` (returns `Vec(a, c)`. This is equivalent to `.i`)
+* `Right(mat)` (returns `Vec(b, d)`. This is equivalent to `.j`)
 * `Top(mat)` (returns `Vec(a, b)`)
 * `Bottom(mat)` (returns `Vec(c, d)`)
 * `Hor(v1, v2)` (returns `Mat(x1, y1, x2, y2)`)
@@ -33,6 +33,7 @@ This is a project to visualise matrix transformations, such as multiplication, i
 * Automatic camera which changed based on visuals
 * Displays an abstract syntax tree representing your equation
 * Ability to trim down your abstract syntax tree to not show specific visuals
+* Complete tokeniser and Pratt parser
 
 # Examples
 
