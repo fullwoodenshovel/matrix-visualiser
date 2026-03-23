@@ -11,7 +11,7 @@ These are the new features:
 These are all of the important new commits from this release.
 This may include technical changes, architectural changes, bug fixes, etc:
 
-- All added features are listed in the README
+- All new features are listed in the README
 
 
 ## Downloads
