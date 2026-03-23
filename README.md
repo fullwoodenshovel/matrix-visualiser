@@ -1,7 +1,16 @@
 # Overview
 This is a project to visualise and evaluate matrix transformations / expressions involving 2x2 matricies, 2D vectors, and floats, such as multiplication, inversing, scaling, addition, determinant, dot product and more.
 
-# Full list of features
+# Full list of features and controls
+## Controls
+* Enter the expression into the terminal. These get evaluated immediately.
+* Use `Show <expr>` to visualise an expression:
+* Click on nodes to ignore them. This also must ignore all its children
+* Use left and right arrows to go back and forwards in the visualisation
+* Use up and down arrows to speed up and slow down the visuals
+* Click right at the end of the visualisation to continue entering expressions in the terminal
+* Any orange node is a leaf node and indicates that the object at that point will be inserted with no visualisation attatched to the beginning of its existence
+
 ## Functions
 * `Mat(a, b, c, d)`
 * `Vec(x, y)`
@@ -28,10 +37,10 @@ This is a project to visualise and evaluate matrix transformations / expressions
 * `(` and `)`
 * Any token not here is interpretted as a variable name
 
-### Other features
+## Other features
 * Variable assignment and use
-* Automatic camera which changed based on visuals
-* Displays an abstract syntax tree representing your equation
+* Automatic camera which changes based on visuals
+* Displays an abstract syntax tree representing your expression
 * Ability to trim down your abstract syntax tree to not show specific visuals
 * Complete tokeniser and Pratt parser
 
