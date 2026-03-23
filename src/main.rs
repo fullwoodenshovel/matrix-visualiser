@@ -68,7 +68,7 @@ async fn graphics(ex: &Ex) {
         let order = 'tree: loop {
             clear_background(BLACK);
 
-            let order = draw_tree(ex, &mut ignored);
+            let order = draw_tree(ex, &mut ignored, None);
             
             next_frame().await;
             if is_key_pressed(KeyCode::Right) {
@@ -199,6 +199,16 @@ async fn graphics(ex: &Ex) {
                 display_speed = get_time();
             }
 
+            if is_key_down(KeyCode::K) {
+                draw_rectangle(0.0, 0.0, screen_width(), screen_height(), Color { r: 0.0, g: 0.0, b: 0.0, a: 0.6});
+                let offset = if time > 0.0 {
+                    0
+                } else {
+                    1
+                };
+                draw_tree(ex, &mut ignored, Some(order[index - offset]));
+            }
+
             next_frame().await;
         }
     }
@@ -217,7 +227,7 @@ fn get_total(ex: &Ex) -> Vec<usize> {
     depths
 }
 
-fn draw_tree(ex: &Ex, ignored: &mut HashSet<(usize, usize, usize)>) -> Vec<usize> {
+fn draw_tree(ex: &Ex, ignored: &mut HashSet<(usize, usize, usize)>, current_ex_index: Option<usize>) -> Vec<usize> {
     let mouse = if is_mouse_button_pressed(MouseButton::Left) {
         let mouse = mouse_position();
         Some(vec2(mouse.0, mouse.1))
@@ -276,7 +286,9 @@ fn draw_tree(ex: &Ex, ignored: &mut HashSet<(usize, usize, usize)>) -> Vec<usize
             ignored.insert((depth, i, index));
         }
 
-        let colour = if is_ignored {
+        let colour = if let Some(current_ex_index) = current_ex_index && current_ex_index == index {
+            MAGENTA
+        } else if is_ignored {
             BROWN
         } else if ignored.contains(&(depth, i, index)) ||
         matches!(ex, ExPointer::Float(FloatEx::Literal(_)) | ExPointer::Vec(VecEx::Literal(_)) | ExPointer::Mat(MatEx::Literal(_))){
