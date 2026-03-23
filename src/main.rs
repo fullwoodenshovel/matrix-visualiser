@@ -14,6 +14,8 @@ use macroquad::prelude::*;
 // For example:
 //  - When drawing the tree, finding children of ignored is done every frame
 //  - When visualising, figuring out what objects to draw in the background is done every frame
+// There is an issue with the pratt parser where it returns when reaching `)` or `,`, even if it isnt the end of the string.
+// This means you can input `0, * **c 3jlfa 1.x` and it will return `0`
 
 fn conf() -> Conf {
     Conf {

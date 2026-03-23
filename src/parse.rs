@@ -467,7 +467,7 @@ fn parse_func<const N: usize, T: ExTrait>(vars: &HashMap<String, Obj>, lexer: &m
     };
 
     if Token::RBrace != token {
-        return Err("You must have a comma after each argument in a function.".to_string())
+        return Err(format!("Expected close bracket, got {token:?}"))
     }
 
     Ok(result.map(|d| d.unwrap()))
@@ -479,7 +479,7 @@ fn parse_func_boxed<const N: usize, T: ExTrait>(vars: &HashMap<String, Obj>, lex
 
 fn pratt_parse(vars: &HashMap<String, Obj>, lexer: &mut Buffer<Token>, min_bp: u8) -> Result<Ex, String> {
     let Some(token) = lexer.next() else {
-        return Err("Expected value.".to_string());
+        return Err("Unexpected end of expression. This may be due to unclosed brackets.".to_string());
     };
     let mut lhs = match token {
         Token::Float(float) => Ex::Float(FloatEx::Literal(float)),
@@ -521,7 +521,7 @@ fn pratt_parse(vars: &HashMap<String, Obj>, lexer: &mut Buffer<Token>, min_bp: u
             let result = pratt_parse(vars, lexer, 0)?;
 
             let Some(token) = lexer.next() else {
-                return Err("Expression ended without closing function".to_string())
+                return Err("Expression ended without closing bracket".to_string())
             };
 
             if Token::RBrace != token {
