@@ -9,6 +9,7 @@ This is a project to visualise and evaluate matrix transformations / expressions
 * Use left and right arrows to go back and forwards in the visualisation
 * Use up and down arrows to speed up and slow down the visuals
 * Click right at the end of the visualisation to continue entering expressions in the terminal
+* Click `J` to display the abstract syntax tree.
 * Any orange node is a leaf node and indicates that the object at that point will be inserted with no visualisation attatched to the beginning of its existence
 
 ## Functions
@@ -76,5 +77,5 @@ Show Mat(2,1,-3,(2*-2)+3)
 ```
 
 ```
-Mat(Vec(2,1) * Vec(5 * 2 - 1, 4), -Vec(2,7).y / 2 / 0.3, RotVec(2).x, 6 + 3 - (1 - 2)) * RotVec(5)
+Show Mat(Vec(2,1) * Vec(5 / 2 - 1, 4), -Vec(2,6).y / 2 / 0.8, RotVec(2).x, 1 + 3 - (1 - 2)) * RotVec(5)
 ```
