@@ -566,10 +566,9 @@ fn pratt_parse(vars: &HashMap<String, Obj>, lexer: &mut Buffer<Token>, min_bp: u
         if end_of_ex(op) {
             break;
         }
-
-        let op = lexer.next().expect("Value here just checked by checking lexer.peek is Some");
         
-        let Some((l_bp, r_bp)) = binding_power(&op) else {
+        let Some((l_bp, r_bp)) = binding_power(op) else {
+            let op = lexer.next().expect("Value here just checked by checking lexer.peek is Some");
             match lhs {
                 Ex::Mat(ex) => match op {
                     Token::DotA | Token::DotX => lhs = Ex::Float(FloatEx::A(Box::new(ex))),
@@ -593,6 +592,8 @@ fn pratt_parse(vars: &HashMap<String, Obj>, lexer: &mut Buffer<Token>, min_bp: u
         if l_bp < min_bp {
             break;
         }
+
+        let op = lexer.next().expect("Value here just checked by checking lexer.peek is Some");
 
         let rhs = pratt_parse(vars, lexer, r_bp)?;
         let lhs_type = lhs.get_type();
