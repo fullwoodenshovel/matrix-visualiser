@@ -1,16 +1,28 @@
 use std::{collections::{HashMap, VecDeque}, fmt::Debug};
 
+#[cfg(target_family = "unix")]
 use input_handler::InputHandler;
 use macroquad::math::Vec2;
 pub mod for_each;
 pub mod visualise;
 use crate::mat2::Mat2;
 
+#[cfg(not(target_family = "unix"))]
+pub struct InputHandler;
 
 pub fn input(prompt: &str, handler: &mut InputHandler) -> String {
+    #[cfg(target_family = "unix")]
     match handler.readline(prompt) {
         Ok(input) => input,
         Err(err) => panic!("Error with input: {err}")
+    }
+    #[cfg(not(target_family = "unix"))]
+    {
+        let _ = handler;
+        println!("{prompt}");
+        let mut input = String::new();
+        std::io::stdin().read_line(&mut input).expect("Failed to read line");
+        input
     }
 }
 
