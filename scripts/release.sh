@@ -141,7 +141,7 @@ echo "$ACTION v$NEW_VERSION..."
 
 # Create the release notes file
 cat > RELEASE_NOTES.md << EOF
-# Redriddles v${NEW_VERSION}
+# Matrix Visualiser v${NEW_VERSION}
 
 ## What's new
 This is stuff important for the end user, basically the technical changes, but summarised and less important changes ignored.
@@ -158,23 +158,23 @@ ${BULLET_COMMITS}
 ## Downloads
 
 ### Windows
-- **redriddles-v${NEW_VERSION}-windows-x86_64.zip**
+- **matrix-visualiser-v${NEW_VERSION}-windows-x86_64.zip**
   1. Extract the ZIP
-  2. Open the 'redriddles' folder
-  3. Double-click redriddles.exe
+  2. Open the 'matrix-visualiser' folder
+  3. Double-click matrix-visualiser.exe
 
 ### Linux
-- **redriddles-v${NEW_VERSION}-linux-x86_64.zip**
+- **matrix-visualiser-v${NEW_VERSION}-linux-x86_64.zip**
   1. Extract the ZIP
-  2. Open the 'redriddles' folder in terminal
-  3. Run: \`./redriddles\`
+  2. Open the 'matrix-visualiser' folder in terminal
+  3. Run: \`./matrix-visualiser\`
 
 ### macOS
-- **redriddles-v${NEW_VERSION}-macos.zip**
+- **matrix-visualiser-v${NEW_VERSION}-macos.zip**
   1. Extract the ZIP
-  2. Open the 'redriddles' folder
-  3. Right-click 'redriddles' and Open (first time only)
-  4. Or run in terminal: \`./redriddles\`
+  2. Open the 'matrix-visualiser' folder
+  3. Right-click 'matrix-visualiser' and Open (first time only)
+  4. Or run in terminal: \`./matrix-visualiser\`
 EOF
 
 echo ""
