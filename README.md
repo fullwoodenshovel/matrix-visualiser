@@ -1,6 +1,8 @@
 # Overview
 This is a project to visualise and evaluate matrix transformations / expressions involving 2x2 matricies, 2D vectors, and floats, such as multiplication, inversing, scaling, addition, determinant, dot product and more.
 
+To download it, go to the [latest release](https://github.com/fullwoodenshovel/matrix-visualiser/releases/latest)
+
 # Full list of features and controls
 ## Controls
 * Enter the expression into the terminal. These get evaluated immediately.
@@ -9,7 +11,7 @@ This is a project to visualise and evaluate matrix transformations / expressions
 * Use left and right arrows to go back and forwards in the visualisation
 * Use up and down arrows to speed up and slow down the visuals
 * Click right at the end of the visualisation to continue entering expressions in the terminal
-* Click `J` to display the abstract syntax tree.
+* Click `K` to display the abstract syntax tree.
 * Any orange node is a leaf node and indicates that the object at that point will be inserted with no visualisation attatched to the beginning of its existence
 
 ## Functions
