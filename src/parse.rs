@@ -19,7 +19,7 @@ pub fn input(prompt: &str, handler: &mut InputHandler) -> String {
     #[cfg(not(target_family = "unix"))]
     {
         let _ = handler;
-        println!("{prompt}");
+        print!("{prompt}");
         let mut input = String::new();
         std::io::stdin().read_line(&mut input).expect("Failed to read line");
         input
@@ -422,10 +422,19 @@ pub fn make_tree(vars: &HashMap<String, Obj>, tokens: Vec<Token>) -> Result<(Lin
     } else if tokens.len() >= 2 && let Token::VarName(name) = tokens[0].clone() && let Token::Eq = tokens[1] {
         tokens.pop_front();
         tokens.pop_front();
-        Line::SetVar(name, pratt_parse(vars, &mut Buffer::new(tokens), 0)?)
+        let mut tokens = Buffer::new(tokens);
+        let result = Line::SetVar(name, pratt_parse(vars, &mut tokens, 0)?);
+        if let Some(token) = tokens.next() {
+            return Err(format!("Expected end of expression, found token {token:?}"))
+        }
+        result
     } else {
         let mut tokens = Buffer::new(tokens);
-        Line::Eval(pratt_parse(vars, &mut tokens, 0)?)
+        let result = Line::Eval(pratt_parse(vars, &mut tokens, 0)?);
+        if let Some(token) = tokens.next() {
+            return Err(format!("Expected end of expression, found token {token:?}"))
+        }
+        result
     };
 
     Ok((result, show))
