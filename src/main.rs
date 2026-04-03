@@ -12,6 +12,8 @@ use parse::visualise::{visualise, display_background, visualise_obj};
 mod transform;
 use transform::{Transform, get_screen_dims};
 use macroquad::prelude::*;
+#[cfg(target_arch = "wasm32")]
+mod web;
 
 // There are many checks that wont change from most frames to the next, but are checked each frame. these can be optimised.
 // For example:
@@ -40,7 +42,14 @@ async fn main() {
     let mut handler = InputHandler::new().expect("Failed to initialise InputHandler");
     display_go_to_term().await;
     loop {
-        let Some((line, show)) = parse_exp(&vars, &mut handler) else {continue;};
+        let Some((line, show)) = parse_exp(&vars, &mut handler) else {
+            // On WASM: no input yet — yield one frame so the browser stays
+            // responsive instead of spinning. On native this branch is never
+            // reached because input() blocks until stdin returns.
+            #[cfg(target_arch = "wasm32")]
+            next_frame().await;
+            continue;
+        };
 
         let mut set_var = None;
         let ex = match line {
@@ -54,12 +63,23 @@ async fn main() {
         if let Some(var) = set_var {
             vars.entry(var).insert_entry(result);
         } else {
+            #[cfg(not(target_arch = "wasm32"))]
             println!("{result:?}");
+            #[cfg(target_arch = "wasm32")]
+            web::push_output(format!("{result:?}"));
         }
 
         if show {
+            #[cfg(not(target_arch = "wasm32"))]
             println!("Go to window for visualisation.");
+            #[cfg(target_arch = "wasm32")]
+            web::set_show_mode(true);
+
             graphics(&ex).await;
+
+            #[cfg(target_arch = "wasm32")]
+            web::set_show_mode(false);
+
             display_go_to_term().await;
         }
     }
@@ -67,6 +87,9 @@ async fn main() {
 
 async fn graphics(ex: &Ex) {
     let mut ignored = HashSet::new();
+    const SPEEDS: [f32; 9] = [0.1, 0.2, 0.5, 0.8, 1.0, 1.2, 1.5, 2.0, 2.5];
+    let mut speed_index = 4;
+    let mut speed = SPEEDS[speed_index];
     'main: loop {
         next_frame().await;
 
@@ -83,9 +106,6 @@ async fn graphics(ex: &Ex) {
         
         next_frame().await;
         
-        const SPEEDS: [f32; 9] = [0.1, 0.2, 0.5, 0.8, 1.0, 1.2, 1.5, 2.0, 2.5];
-        let mut speed_index = 4;
-        let mut speed = SPEEDS[speed_index];
         let mut display_speed = 0.0;
         let mut index = 0;
         let mut time = get_frame_time() * speed;

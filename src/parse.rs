@@ -10,19 +10,24 @@ use crate::mat2::Mat2;
 #[cfg(not(target_family = "unix"))]
 pub struct InputHandler;
 
-pub fn input(prompt: &str, handler: &mut InputHandler) -> String {
-    #[cfg(target_family = "unix")]
-    match handler.readline(prompt) {
+pub fn input(prompt: &str, handler: &mut InputHandler) -> Option<String> {
+    // WASM: non-blocking — return None if JS hasn't submitted anything yet.
+    #[cfg(target_arch = "wasm32")]
+    { let _ = (prompt, handler); return crate::web::take_input(); }
+
+    #[cfg(all(target_family = "unix", not(target_arch = "wasm32")))]
+    return Some(match handler.readline(prompt) {
         Ok(input) => input,
         Err(err) => panic!("Error with input: {err}")
-    }
-    #[cfg(not(target_family = "unix"))]
+    });
+
+    #[cfg(all(not(target_family = "unix"), not(target_arch = "wasm32")))]
     {
         let _ = handler;
         print!("{prompt}");
         let mut input = String::new();
         std::io::stdin().read_line(&mut input).expect("Failed to read line");
-        input
+        Some(input)
     }
 }
 
@@ -630,12 +635,25 @@ fn pratt_parse(vars: &HashMap<String, Obj>, lexer: &mut Buffer<Token>, min_bp: u
 }
 
 pub fn parse_exp(vars: &HashMap<String, Obj>, handler: &mut InputHandler) -> Option<(Line, bool)> {
-    let tokenised = tokenise(&input("> ", handler));
+    // The ? propagates None to the caller when there is no input yet (WASM idle).
+    // On native platforms input() always returns Some, so ? never fires there.
+    let raw = input("> ", handler)?;
+    let tokenised = tokenise(&raw);
     match tokenised {
-        Err(err) => eprintln!("{err}"),
+        Err(err) => {
+            #[cfg(not(target_arch = "wasm32"))]
+            eprintln!("{err}");
+            #[cfg(target_arch = "wasm32")]
+            crate::web::push_output(err);
+        }
         Ok(tokens) => match make_tree(vars, tokens) {
             Ok(tree) => return Some(tree),
-            Err(err) => eprintln!("{err}")
+            Err(err) => {
+                #[cfg(not(target_arch = "wasm32"))]
+                eprintln!("{err}");
+                #[cfg(target_arch = "wasm32")]
+                crate::web::push_output(err);
+            }
         }
     };
     
