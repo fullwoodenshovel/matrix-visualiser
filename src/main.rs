@@ -85,6 +85,58 @@ async fn main() {
     }
 }
 
+fn right_pressed() -> bool {
+    #[cfg(feature = "touchscreen")]
+    let center = vec2(screen_width() * 0.95, screen_height() / 2.0);
+
+    #[cfg(feature = "touchscreen")]
+    {
+        draw_triangle(center, center + vec2(-30.0, 40.0), center + vec2(-30.0, -40.0), WHITE);
+    }
+
+    if is_key_pressed(KeyCode::Right) {
+        return true
+    }
+
+    #[cfg(feature = "touchscreen")]
+    if is_mouse_button_pressed(MouseButton::Left) &&
+        let mouse = mouse_position() &&
+        let mouse = vec2(mouse.0, mouse.1) &&
+        let rect = Rect::new(center.x - 30.0, center.y - 40.0, 30.0, 80.0) &&
+        rect.contains(mouse)
+    {
+        return true
+    }
+    false
+    
+}
+
+fn left_pressed() -> bool {
+    #[cfg(feature = "touchscreen")]
+    let center = vec2(screen_width() * 0.05, screen_height() / 2.0);
+
+    #[cfg(feature = "touchscreen")]
+    {
+        draw_triangle(center, center + vec2(30.0, 40.0), center + vec2(30.0, -40.0), WHITE);
+    }
+
+    if is_key_pressed(KeyCode::Left) {
+        return true
+    }
+
+    #[cfg(feature = "touchscreen")]
+    if is_mouse_button_pressed(MouseButton::Left) &&
+        let mouse = mouse_position() &&
+        let mouse = vec2(mouse.0, mouse.1) &&
+        let rect = Rect::new(center.x, center.y - 40.0, 30.0, 80.0) &&
+        rect.contains(mouse)
+    {
+        return true
+    }
+    false
+    
+}
+
 async fn graphics(ex: &Ex) {
     let mut ignored = HashSet::new();
     const SPEEDS: [f32; 9] = [0.1, 0.2, 0.5, 0.8, 1.0, 1.2, 1.5, 2.0, 2.5];
@@ -98,10 +150,10 @@ async fn graphics(ex: &Ex) {
 
             let order = draw_tree(ex, &mut ignored, None);
             
-            next_frame().await;
-            if is_key_pressed(KeyCode::Right) {
+            if right_pressed() {
                 break 'tree order
             }
+            next_frame().await;
         };
         
         next_frame().await;
@@ -183,9 +235,9 @@ async fn graphics(ex: &Ex) {
                 draw_text(&text, transform.screen_dims.x / 2.0 - w / 2.0, 58.0, 18.0, WHITE);
             }
 
-            if is_key_pressed(KeyCode::Left) && index == 0 {
+            if left_pressed() && index == 0 {
                 break 'visualise
-            } else if is_key_pressed(KeyCode::Left) {
+            } else if left_pressed() {
                 if time == 0.0 {
                     index -= 1;
                     if index == 0 {
@@ -194,14 +246,14 @@ async fn graphics(ex: &Ex) {
                 } else {
                     time = 0.0;
                 }
-            } else if is_key_pressed(KeyCode::Right) {
+            } else if right_pressed() {
                 if index == order.len() {
                     loop {
                         draw_text("End of visualisation.", 50.0, 50.0, 30.0, WHITE);
                         next_frame().await;
-                        if is_key_pressed(KeyCode::Left) {
+                        if left_pressed() {
                             break
-                        } else if is_key_pressed(KeyCode::Right) {
+                        } else if right_pressed() {
                             break 'main
                         }
                     }

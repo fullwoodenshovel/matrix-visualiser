@@ -11,3 +11,4 @@ input_handler = "0.1"
 
 [features]
 debug_points = []
+touchscreen = []
