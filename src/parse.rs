@@ -322,7 +322,7 @@ pub fn tokenise(inp: &str) -> Result<Vec<Token>, String> {
         let mut residual = String::new();
         
         fn append_residual(result: &mut Vec<Token>, residual: &str) {
-            match residual {
+            match &*residual.to_ascii_lowercase() {
                 ".x" => result.push(Token::DotX),
                 ".y" => result.push(Token::DotY),
                 ".w" => result.push(Token::DotW),
@@ -333,19 +333,19 @@ pub fn tokenise(inp: &str) -> Result<Vec<Token>, String> {
                 ".d" => result.push(Token::DotD),
                 ".i" => result.push(Token::DotI),
                 ".j" => result.push(Token::DotJ),
-                "Left" => result.push(Token::Left),
-                "Right" => result.push(Token::Right),
-                "Top" => result.push(Token::Top),
-                "Bottom" => result.push(Token::Bottom),
-                "Hor" => result.push(Token::Hor),
-                "Inv" => result.push(Token::Inv),
-                "Vert" => result.push(Token::Vert),
-                "Mat" => result.push(Token::Mat),
-                "Vec" => result.push(Token::Vec),
-                "RotMat" => result.push(Token::RotMat),
-                "RotVec" => result.push(Token::RotVec),
-                "Det" => result.push(Token::Det),
-                "Show" => result.push(Token::Show),
+                "left" => result.push(Token::Left),
+                "right" => result.push(Token::Right),
+                "top" => result.push(Token::Top),
+                "bottom" => result.push(Token::Bottom),
+                "hor" => result.push(Token::Hor),
+                "inv" => result.push(Token::Inv),
+                "vert" => result.push(Token::Vert),
+                "mat" => result.push(Token::Mat),
+                "vec" => result.push(Token::Vec),
+                "rotmat" => result.push(Token::RotMat),
+                "rotvec" => result.push(Token::RotVec),
+                "det" => result.push(Token::Det),
+                "show" => result.push(Token::Show),
                 value => {
                     match value.parse() {
                         Ok(float) => result.push(Token::Float(float)),

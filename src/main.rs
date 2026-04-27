@@ -249,7 +249,7 @@ async fn graphics(ex: &Ex) {
             } else if right_pressed() {
                 if index == order.len() {
                     loop {
-                        draw_text("End of visualisation.", 50.0, 50.0, 30.0, WHITE);
+                        draw_text("End of visualisation. Click right to continue.", 50.0, 50.0, 30.0, WHITE);
                         next_frame().await;
                         if left_pressed() {
                             break
@@ -400,6 +400,9 @@ fn draw_tree(ex: &Ex, ignored: &mut HashSet<(usize, usize, usize)>, current_ex_i
 
 async fn display_go_to_term() {
     clear_background(BLACK);
+    #[cfg(target_arch = "wasm32")]
+    draw_text("End of visualisation. Click right to continue.", 50.0, 50.0, 30.0, WHITE);
+    #[cfg(not(target_arch = "wasm32"))]
     draw_text("Enter input in terminal", 50.0, 50.0, 30.0, WHITE);
     next_frame().await;
 }

@@ -48,14 +48,14 @@
         .log-input::before { content: '> '; }
         .log-output { color: #b0f0b0; white-space: pre-wrap; }
         .log-error  { color: #ff7070; white-space: pre-wrap; }
-        .log-info   { color: #666;    white-space: pre-wrap; font-style: italic; }
+        .log-info   { color: #ccc;    white-space: pre-wrap; font-style: italic; }
 
         #input-row {
             display: flex;
             align-items: center;
             padding: 8px 16px;
             border-top: 1px solid #2a2a2a;
-            background: #111;
+            background: #222;
             gap: 6px;
             flex-shrink: 0;
         }
@@ -77,12 +77,12 @@
             caret-color: #7ecfff;
         }
 
-        #cmd-input::placeholder { color: #333; }
+        #cmd-input::placeholder { color: #999; }
 
         #hint {
             padding: 3px 16px;
             font-size: 11px;
-            color: #333;
+            color: #999;
             background: #111;
         }
     </style>
@@ -95,7 +95,9 @@
     <div id="console-log">
         <div class="log-info">Matrix Visualiser</div>
         <div class="log-info">Try: Show Mat(1,2,-3,3) * Mat(0.5,-1,1,0.5)</div>
-        <div class="log-info">For more information, check the <a href="https://github.com/fullwoodenshovel/matrix-visualiser">Github</a>.</div>
+        <div class="log-info">For more information, check the <a href="https://github.com/fullwoodenshovel/matrix-visualiser">Github</a>, specifically the <a href="https://github.com/fullwoodenshovel/matrix-visualiser/blob/master/README.md">ReadMe</a>.</div>
+        <div class="log-info">Enter your expression in the terminal below. ↓</div>
+        <div class="log-info">After using Show, use left and right arrows to navigate.</div>
         <div class="log-info"></div>
     </div>
     <div id="input-row">
