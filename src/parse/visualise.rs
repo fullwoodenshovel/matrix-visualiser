@@ -33,7 +33,6 @@ pub fn visualise_obj(obj: Obj, transform: &mut Transform, background: bool) {
 }
 
 pub fn visualise(index: usize, time: f32, ex: &Ex, transform: &mut Transform) -> bool {
-
     let indexed = for_each(ex, true, false)[index].0;
     let anim_done = visualise_individual(time, indexed, transform);
     if !anim_done {
@@ -1159,8 +1158,8 @@ fn display_mat_foreground(mat: Mat2, transform: &mut Transform, labeli: &str, la
 }
 
 fn display_mat_foreground_with_col(mat: Mat2, transform: &mut Transform, labeli: &str, labelj: &str, colour: Color) {
-    display_vec_with_col(mat * vec2(1.0, 0.0), transform, labeli, colour);
-    display_vec_with_col(mat * vec2(0.0, 1.0), transform, labelj, colour);
+    display_vec_with_col(mat.i(), transform, labeli, colour);
+    display_vec_with_col(mat.j(), transform, labelj, colour);
 }
 
 fn display_mat_all(mat: Mat2, transform: &mut Transform, labeli: &str, labelj: &str) {
@@ -1171,9 +1170,9 @@ fn display_mat_all(mat: Mat2, transform: &mut Transform, labeli: &str, labelj: &
 fn display_mat_background_with_col(mat: Mat2, transform: &Transform, axis: Color, others: Color) {
     if mat.det() == 0.0 {
         let dir = {
-            let trial = mat * vec2(1.0, 0.0);
+            let trial = mat.i();
             if trial.x.abs() < f32::EPSILON && trial.y.abs() < f32::EPSILON {
-                mat * vec2(0.0, 1.0)
+                mat.j()
             } else {
                 trial
             }
@@ -1204,8 +1203,8 @@ fn display_mat_background_with_col(mat: Mat2, transform: &Transform, axis: Color
             }
         }
     
-        transform.draw_line(mat * vec2(-1.0, 0.0), mat * vec2(1.0, 0.0), 2.0, axis);
-        transform.draw_line(mat * vec2(0.0, -1.0), mat * vec2(0.0, 1.0), 2.0, axis);
+        transform.draw_line(mat * vec2(-1.0, 0.0), mat.i(), 2.0, axis);
+        transform.draw_line(mat * vec2(0.0, -1.0), mat.j(), 2.0, axis);
     }
 }
 
