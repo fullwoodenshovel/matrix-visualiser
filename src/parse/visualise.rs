@@ -1168,6 +1168,11 @@ fn display_mat_all(mat: Mat2, transform: &mut Transform, labeli: &str, labelj: &
 }
 
 fn display_mat_background_with_col(mat: Mat2, transform: &Transform, axis: Color, others: Color) {
+    let complete_overlay = || {
+        let i = mat.i();
+        let j = mat.j();
+        (i.x * j.y - i.y * j.x).abs() / i.length().max(j.length()) <= 2.0 / transform.scale
+    };
     if mat.det() == 0.0 {
         let dir = {
             let trial = mat.i();
@@ -1181,28 +1186,29 @@ fn display_mat_background_with_col(mat: Mat2, transform: &Transform, axis: Color
             return
         }
         transform.draw_line(dir, vec2(0.0, 0.0), 2.0, axis);
+    } else if mat.i().length() * transform.scale < 2.0 || mat.j().length() * transform.scale < 2.0 {
+        clear_background(others);
+    } else if complete_overlay() {
+        draw_rectangle(0.0, 0.0, transform.screen_dims.x, transform.screen_dims.y, others);
     } else {
-        if mat.i().length() * transform.scale < 2.0 || mat.j().length() * transform.scale < 2.0 {
-            clear_background(others);
-        } else {
-            let mut neg_x = -1.0;
-            while transform.draw_line(mat * vec2(neg_x, -1.0), mat * vec2(neg_x, 1.0), 2.0, others) {
-                neg_x -= 1.0;
-            }
-            let mut pos_x = 1.0;
-            while transform.draw_line(mat * vec2(pos_x, -1.0), mat * vec2(pos_x, 1.0), 2.0, others) {
-                pos_x += 1.0;
-            }
-            let mut neg_y = -1.0;
-            while transform.draw_line(mat * vec2(-1.0, neg_y), mat * vec2(1.0, neg_y), 2.0, others) {
-                neg_y -= 1.0;
-            }
-            let mut pos_y = 1.0;
-            while transform.draw_line(mat * vec2(-1.0, pos_y), mat * vec2(1.0, pos_y), 2.0, others) {
-                pos_y += 1.0;
-            }
+        let mut neg_x = -1.0;
+        while transform.draw_line(mat * vec2(neg_x, -1.0), mat * vec2(neg_x, 1.0), 2.0, others) {
+            neg_x -= 1.0;
         }
-    
+        let mut pos_x = 1.0;
+        while transform.draw_line(mat * vec2(pos_x, -1.0), mat * vec2(pos_x, 1.0), 2.0, others) {
+            pos_x += 1.0;
+        }
+        let mut neg_y = -1.0;
+        while transform.draw_line(mat * vec2(-1.0, neg_y), mat * vec2(1.0, neg_y), 2.0, others) {
+            neg_y -= 1.0;
+        }
+        let mut pos_y = 1.0;
+        while transform.draw_line(mat * vec2(-1.0, pos_y), mat * vec2(1.0, pos_y), 2.0, others) {
+            pos_y += 1.0;
+        }
+    }
+    if mat.det() != 0.0 {
         transform.draw_line(mat * vec2(-1.0, 0.0), mat.i(), 2.0, axis);
         transform.draw_line(mat * vec2(0.0, -1.0), mat.j(), 2.0, axis);
     }
