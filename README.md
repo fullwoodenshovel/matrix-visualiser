@@ -1,7 +1,11 @@
 # Overview
 This is a project to visualise and evaluate matrix transformations / expressions involving 2x2 matricies, 2D vectors, and floats, such as multiplication, inversing, scaling, addition, determinant, dot product and more.
 
-To download it, go to the [latest release](https://github.com/fullwoodenshovel/matrix-visualiser/releases/latest)
+To run it, go to the [latest release](https://github.com/fullwoodenshovel/matrix-visualiser/releases/latest), or visit the [website](https://www.fullw.me/matrix/)
+
+# Example
+<img width="600" height="367" alt="example" src="https://github.com/user-attachments/assets/8db0616a-6588-49c5-9f73-34b37da182ba" />
+
 
 # Full list of features and controls
 ## Controls
