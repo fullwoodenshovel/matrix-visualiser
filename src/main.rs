@@ -170,16 +170,14 @@ async fn graphics(ex: &Ex) {
             transform.screen_dims = get_screen_dims();
             display_background(&transform);
 
-            let vec = for_each(ex, false, true);
-
             // This algorithm does the following:
             // walk the tree backwards, until reaching index of target. all these values are special cases and do not need to be displayed.
             // set target_depth to depth of this index, and display.
             // when walking backwards, if target_depth >= depth, display and set target_depth to depth.
             // This doesnt work if order isnt in ascending order.
-            // This can be optimised as vec is just the normal for_each reversed. this means the indexing can be identified easily. vec variable is unnecessary
             if index < order.len() {
-                let current_ex = for_each(ex, true, false)[order[index]].0;
+                let vec = for_each(ex, false, true);
+                let current_ex = vec[vec.len() - order[index] - 1].0;
                 let new_index = vec.iter().position(|d| d.0.pointer_eq(current_ex)).unwrap();
                 let mut target_depth = if time == 0.0 {
                     vec[new_index].1 + 1
