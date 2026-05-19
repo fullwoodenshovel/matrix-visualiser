@@ -85,3 +85,6 @@ Show Mat(2,1,-3,(2*-2)+3)
 ```
 Show Mat(Vec(2,1) * Vec(5 / 2 - 1, 4), -Vec(2,6).y / 2 / 0.8, RotVec(2).x, 1 + 3 - (1 - 2)) * RotVec(5)
 ```
+
+# Contributing
+Contributions are extremely welcome! If you find something you'd like to change, or want to solve an issue, go for it!

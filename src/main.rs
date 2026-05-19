@@ -15,12 +15,6 @@ use macroquad::prelude::*;
 #[cfg(target_arch = "wasm32")]
 mod web;
 
-// There are many checks that wont change from most frames to the next, but are checked each frame. these can be optimised.
-// For example:
-//  - When drawing the tree, finding children of ignored is done every frame
-//  - When visualising, figuring out what objects to draw in the background is done every frame
-// Using a flamegraph shows that optimisation isn't a big issue. What takes most CPU time is macroquad instead.
-
 fn conf() -> Conf {
     Conf {
         window_title: "Matrix Visualiser".to_string(),
@@ -356,7 +350,6 @@ fn draw_tree(ex: &Ex, ignored: &mut HashSet<(usize, usize, usize)>, current_ex_i
 
         let is_ignored = ignored.iter().any(|(ignored_depth, index, _)| depth > *ignored_depth && indicies[*ignored_depth] == *index);
 
-        // This can be optimised by only activating on the tick after left mouse clicked.
         if is_ignored {
             ignored.insert((depth, i, index));
         }
@@ -381,7 +374,7 @@ fn draw_tree(ex: &Ex, ignored: &mut HashSet<(usize, usize, usize)>, current_ex_i
             let TextDimensions { width: test_width, offset_y: test_y, .. } = measure_text(text, None, scale, 1.0) &&
             test_width > spacing / 1.7
         {
-            scale -= 1; // could be optimised with binary search instead
+            scale -= 1;
             text_width = test_width;
             offset_y = test_y;
         };
