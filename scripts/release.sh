@@ -175,6 +175,9 @@ ${BULLET_COMMITS}
   2. Open the 'matrix-visualiser' folder
   3. Right-click 'matrix-visualiser' and Open (first time only)
   4. Or run in terminal: \`./matrix-visualiser\`
+
+### Website
+Just visit [www.fullw.me/matrix](https://www.fullw.me/matrix) and get started!
 EOF
 
 echo ""
