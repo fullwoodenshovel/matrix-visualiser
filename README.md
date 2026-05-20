@@ -34,7 +34,7 @@ To run it, go to the [latest release](https://github.com/fullwoodenshovel/matrix
 * `Bottom(mat)` (returns `Vec(c, d)`)
 * `Hor(v1, v2)` (returns `Mat(x1, y1, x2, y2)`)
 * `Vert(v1, v2)` (returns `Mat(x1, x2, y1, y2)`)
-* `RotMat(angle)`
+* `RotMat(angle)` (angle in radians. `pi` constant is defined)
 * `RotVec(angle)`
 * `X` (defined for vec by vec, represents cross product)
 * `*` (defined for vec by vec, represents dot product)
@@ -45,7 +45,7 @@ To run it, go to the [latest release](https://github.com/fullwoodenshovel/matrix
 * Any token not here is interpretted as a variable name
 
 ## Other features
-* Variable assignment and use
+* Variable assignment and use - pi and I (2x2 identity matrix) are defined.
 * Automatic camera which changes based on visuals
 * Displays an abstract syntax tree representing your expression
 * Ability to trim down your abstract syntax tree to not show specific visuals
