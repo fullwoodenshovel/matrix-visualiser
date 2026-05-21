@@ -29,7 +29,7 @@ async fn main() {
     vars.entry("pi".to_string()).insert_entry(parse::Obj::Float(f32::consts::PI));
     vars.entry("tau".to_string()).insert_entry(parse::Obj::Float(f32::consts::TAU));
     vars.entry("e".to_string()).insert_entry(parse::Obj::Float(f32::consts::E));
-    vars.entry("I".to_string()).insert_entry(parse::Obj::Mat(mat2::I));
+    vars.entry("i".to_string()).insert_entry(parse::Obj::Mat(mat2::I));
     #[cfg(not(target_family = "unix"))]
     let mut handler = InputHandler;
     #[cfg(target_family = "unix")]
